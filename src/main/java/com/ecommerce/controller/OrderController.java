@@ -51,6 +51,6 @@ public class OrderController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<OrderDto>> updateOrderStatus(
             @PathVariable Long id, @RequestParam Order.OrderStatus status) {
-        return ResponseEntity.ok(ApiResponse.success("Order status updated successfully",orderService.updateOrderStatus(id, status)));
+        return ResponseEntity.ok(ApiResponse.success("Order status updated successfully",orderService.updateOrderStatus(id,null, status)));
     }
 }

@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -60,6 +61,21 @@ public class OrderService {
 
         return orderDto;
     }
+    
+    /**
+     * Lấy entity Order theo ID (sử dụng nội bộ)
+     */
+    public Order getOrderEntityById(Long id) {
+        return orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
+    }
+    
+    /**
+     * Tìm đơn hàng theo mã đơn hàng
+     */
+    public Optional<Order> findByOrderNumber(String orderNumber) {
+        return orderRepository.findByOrderNumber(orderNumber);
+    }
 
     @Transactional
     public OrderDto createOrder(OrderRequest orderRequest) {
@@ -78,7 +94,15 @@ public class OrderService {
         order.setOrderNumber(generateOrderNumber());
         order.setShippingAddress(orderRequest.getShippingAddress());
         order.setPaymentMethod(orderRequest.getPaymentMethod());
-        order.setStatus(Order.OrderStatus.PENDING);
+        
+        // Nếu phương thức thanh toán là VNPay, đặt trạng thái là PENDING
+        // và không cập nhật stock cho đến khi thanh toán thành công
+        if ("VNPAY".equals(orderRequest.getPaymentMethod())) {
+            order.setStatus(Order.OrderStatus.PENDING);
+        } else {
+            // Với các phương thức thanh toán khác (như COD), đặt trạng thái là PROCESSING
+            order.setStatus(Order.OrderStatus.PROCESSING);
+        }
         
         BigDecimal totalAmount = BigDecimal.ZERO;
         
@@ -100,8 +124,10 @@ public class OrderService {
         // Save the order first to generate ID
         Order savedOrder = orderRepository.save(order);
         
-        // Update product stock after order is created
-        productService.updateProductStock(savedOrder.getItems());
+        // Chỉ cập nhật stock nếu không phải thanh toán VNPay
+        if (!"VNPAY".equals(orderRequest.getPaymentMethod())) {
+            productService.updateProductStock(savedOrder.getItems());
+        }
         
         // Clear the cart after creating the order
         cartService.clearCart();
@@ -142,10 +168,28 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderDto updateOrderStatus(Long id, Order.OrderStatus status) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
+    public OrderDto updateOrderStatus(Long id, String orderNumber, Order.OrderStatus status) {
+        Order order;
+    
+        // Tìm đơn hàng theo id hoặc orderNumber
+        if (id != null) {
+            order = orderRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
+        } else if (orderNumber != null && !orderNumber.isEmpty()) {
+            order = orderRepository.findByOrderNumber(orderNumber)
+                    .orElseThrow(() -> new ResourceNotFoundException("Order not found with number: " + orderNumber));
+        } else {
+            throw new IllegalArgumentException("Either order id or order number must be provided");
+        }
         
+        // Nếu đơn hàng đang ở trạng thái PENDING và chuyển sang PROCESSING
+        // và phương thức thanh toán là VNPAY, cập nhật stock
+        if (order.getStatus() == Order.OrderStatus.PENDING && 
+            status == Order.OrderStatus.PROCESSING && 
+            "VNPAY".equals(order.getPaymentMethod())) {
+            productService.updateProductStock(order.getItems());
+        }
+
         order.setStatus(status);
         
         if (status == Order.OrderStatus.DELIVERED) {
@@ -158,5 +202,37 @@ public class OrderService {
     private String generateOrderNumber() {
         return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
+    
+    // /**
+    //  * Cập nhật trạng thái đơn hàng theo mã đơn hàng
+    //  */
+    // @Transactional
+    // public OrderDto updateOrderStatusByOrderNumber(String orderNumber, Order.OrderStatus status) {
+    //     Order order = orderRepository.findByOrderNumber(orderNumber)
+    //             .orElseThrow(() -> new ResourceNotFoundException("Order not found with number: " + orderNumber));
+        
+    //     // Nếu đơn hàng đang ở trạng thái PENDING và chuyển sang PROCESSING
+    //     // và phương thức thanh toán là VNPAY, cập nhật stock
+    //     if (order.getStatus() == Order.OrderStatus.PENDING && 
+    //         status == Order.OrderStatus.PROCESSING && 
+    //         "VNPAY".equals(order.getPaymentMethod())) {
+    //         productService.updateProductStock(order.getItems());
+    //     }
+        
+    //     order.setStatus(status);
+        
+    //     if (status == Order.OrderStatus.DELIVERED) {
+    //         order.setDeliveryDate(LocalDateTime.now());
+    //     }
+        
+    //     return orderMapper.toDto(orderRepository.save(order));
+    // }
+    
+    // /**
+    //  * Tạo URL thanh toán VNPay cho đơn hàng
+    //  */
+    // public String createVNPayPaymentUrl(Order order, String ipAddress) {
+    //     return vnPayService.createPaymentUrl(order, ipAddress);
+    // }
 
 }
