@@ -1,5 +1,6 @@
 package com.ecommerce.controller;
 
+import com.ecommerce.annotation.RateLimit;
 import com.ecommerce.dto.ApiResponse;
 import com.ecommerce.dto.CategoryDto;
 import com.ecommerce.dto.CategoryRequest;
@@ -20,6 +21,7 @@ public class CategoryController {
     private CategoryService categoryService;
 
     @GetMapping
+    @RateLimit(authenticatedLimit = 100, anonymousLimit = 50, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<List<CategoryDto>>> getAllCategories() {
         List<CategoryDto> categories = categoryService.getAllCategories();
         ApiResponse<List<CategoryDto>> response = ApiResponse.success("Categories retrieved successfully",categories);
@@ -27,6 +29,7 @@ public class CategoryController {
     }
 
     @GetMapping("/{id}")
+    @RateLimit(authenticatedLimit = 100, anonymousLimit = 50, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<CategoryDto>> getCategoryById(@PathVariable Long id) {
         CategoryDto category = categoryService.getCategoryById(id);
         ApiResponse<CategoryDto> response = ApiResponse.success("Category retrieved successfully",category);
@@ -35,6 +38,7 @@ public class CategoryController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @RateLimit(authenticatedLimit = 20, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<CategoryDto>> createCategory(@Valid @RequestBody CategoryRequest categoryRequest) {
         CategoryDto createdCategory = categoryService.createCategory(categoryRequest);
         ApiResponse<CategoryDto> response = ApiResponse.success("Category created successfully",createdCategory);
@@ -43,6 +47,7 @@ public class CategoryController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @RateLimit(authenticatedLimit = 20, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<CategoryDto>> updateCategory(
             @PathVariable Long id, @Valid @RequestBody CategoryRequest categoryRequest) {
         CategoryDto updatedCategory = categoryService.updateCategory(id, categoryRequest);
@@ -52,6 +57,7 @@ public class CategoryController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @RateLimit(authenticatedLimit = 10, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<?>> deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(id);
         return ResponseEntity.ok(ApiResponse.success("Category deleted successfully", null));

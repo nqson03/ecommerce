@@ -1,5 +1,6 @@
 package com.ecommerce.controller;
 
+import com.ecommerce.annotation.RateLimit;
 import com.ecommerce.dto.ApiResponse;
 import com.ecommerce.dto.ProductRequest;
 import com.ecommerce.dto.ProductResponse;
@@ -20,22 +21,26 @@ public class ProductController {
     private ProductService productService;
 
     @GetMapping
+    @RateLimit(authenticatedLimit = 100, anonymousLimit = 50, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> getAllProducts(Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success("Products retrieved successfully", productService.getAllProducts(pageable)));
     }
 
     @GetMapping("/{id}")
+    @RateLimit(authenticatedLimit = 100, anonymousLimit = 50, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success("Product retrieved successfully", productService.getProductById(id)));
     }
 
     @GetMapping("/category/{categoryId}")
+    @RateLimit(authenticatedLimit = 100, anonymousLimit = 50, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> getProductsByCategory(
             @PathVariable Long categoryId, Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success("Products retrieved successfully",productService.getProductsByCategory(categoryId, pageable)));
     }
 
     @GetMapping("/search")
+    @RateLimit(authenticatedLimit = 50, anonymousLimit = 20, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> searchProducts(
             @RequestParam String keyword, Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success("Products retrieved successfully",productService.searchProducts(keyword, pageable)));
@@ -43,12 +48,14 @@ public class ProductController {
 
     @PostMapping
     @PreAuthorize("hasRole('SELLER') or hasRole('ADMIN')")
+    @RateLimit(authenticatedLimit = 20, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(@Valid @RequestBody ProductRequest productRequest) {
         return ResponseEntity.ok(ApiResponse.success("Product created successfully",productService.createProduct(productRequest)));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('SELLER') or hasRole('ADMIN')")
+    @RateLimit(authenticatedLimit = 20, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
             @PathVariable Long id, @Valid @RequestBody ProductRequest productRequest) {
         return ResponseEntity.ok(ApiResponse.success("Product updated successfully",productService.updateProduct(id, productRequest)));
@@ -56,6 +63,7 @@ public class ProductController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SELLER') or hasRole('ADMIN')")
+    @RateLimit(authenticatedLimit = 10, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<?>> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.ok(ApiResponse.success("Product deleted successfully",null));

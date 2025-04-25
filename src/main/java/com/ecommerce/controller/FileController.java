@@ -1,5 +1,6 @@
 package com.ecommerce.controller;
 
+import com.ecommerce.annotation.RateLimit;
 import com.ecommerce.dto.ApiResponse;
 import com.ecommerce.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,7 @@ public class FileController {
 
     @PostMapping("/upload")
     @PreAuthorize("isAuthenticated()")
+    @RateLimit(authenticatedLimit = 20, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<String>> uploadFile(@RequestParam("file") MultipartFile file) {
         String fileName = fileStorageService.storeFile(file);
 
@@ -40,6 +42,7 @@ public class FileController {
 
     @PostMapping("/uploadMultiple")
     @PreAuthorize("isAuthenticated()")
+    @RateLimit(authenticatedLimit = 10, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<List<String>>> uploadMultipleFiles(@RequestParam("files") MultipartFile[] files) {
         List<String> fileDownloadUrls = Arrays.stream(files)
                 .map(file -> {
@@ -55,6 +58,7 @@ public class FileController {
     }
 
     @GetMapping("/{fileName:.+}")
+    @RateLimit(authenticatedLimit = 100, anonymousLimit = 50, refreshPeriod = 60)
     public ResponseEntity<Resource> downloadFile(@PathVariable String fileName, HttpServletRequest request) {
         // Load file as Resource
         Resource resource = fileStorageService.loadFileAsResource(fileName);

@@ -1,7 +1,7 @@
 package com.ecommerce.controller;
 
+import com.ecommerce.annotation.RateLimit;
 import com.ecommerce.dto.ApiResponse;
-import com.ecommerce.dto.OrderDto;
 import com.ecommerce.model.Order;
 import com.ecommerce.service.OrderService;
 import com.ecommerce.service.VNPayService;
@@ -11,6 +11,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.http.HttpStatus;
+
 import org.springframework.stereotype.Controller;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -34,11 +39,22 @@ public class PaymentController {
      */
     @GetMapping("/create-payment/{orderId}")
     @PreAuthorize("hasRole('USER')")
+    @RateLimit(authenticatedLimit = 10, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<?>> createPayment(@PathVariable Long orderId, HttpServletRequest request) {
         try {
+           // Lấy thông tin người dùng hiện tại
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String username = userDetails.getUsername();
+        
             // Lấy thông tin đơn hàng
-            OrderDto orderDto = orderService.getOrderById(orderId);
             Order order = orderService.getOrderEntityById(orderId);
+        
+            // Kiểm tra xem người dùng hiện tại có phải là chủ sở hữu của đơn hàng không
+            if (!order.getUser().getUsername().equals(username)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    ApiResponse.error("You are not authorized to make payment for this order"));
+            }
             
             // Kiểm tra nếu đơn hàng đã thanh toán
             if (!order.getPaymentMethod().equals("VNPAY") || 
@@ -72,6 +88,7 @@ public class PaymentController {
     private String frontendPaymentResultUrl;
 
     @GetMapping("/vnpay-return")
+    // @RateLimit(authenticatedLimit = 20, refreshPeriod = 60, anonymousLimit = 10)
     public String vnpayReturn(HttpServletRequest request) {
         Map<String, String> vnpParams = new HashMap<>();
         Enumeration<String> paramNames = request.getParameterNames();

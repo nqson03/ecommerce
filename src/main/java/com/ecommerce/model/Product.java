@@ -3,6 +3,7 @@ package com.ecommerce.model;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.ToString;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,14 +39,17 @@ public class Product {
     @Column(name = "image_url")
     private List<String> images = new ArrayList<>();
     
+    @ToString.Exclude
     @ManyToOne
     @JoinColumn(name = "category_id")
     private Category category;
     
+    @ToString.Exclude
     @ManyToOne
     @JoinColumn(name = "seller_id")
     private User seller;
     
+    @ToString.Exclude
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     private Set<Review> reviews = new HashSet<>();
     

@@ -1,5 +1,6 @@
 package com.ecommerce.service;
 
+import com.ecommerce.config.CacheConfig;
 import com.ecommerce.dto.ProductRequest;
 import com.ecommerce.dto.ProductResponse;
 import com.ecommerce.exception.ResourceNotFoundException;
@@ -12,6 +13,9 @@ import com.ecommerce.model.CartItem;
 import com.ecommerce.repository.CategoryRepository;
 import com.ecommerce.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -33,25 +37,30 @@ public class ProductService {
     @Autowired
     private UserService userService;
 
+    @Cacheable(value = CacheConfig.PRODUCTS_CACHE, key = "#pageable.toString()")
     public Page<ProductResponse> getAllProducts(Pageable pageable) {
         return productMapper.toDtoPage(productRepository.findAll(pageable));
     }
 
+    @Cacheable(value = CacheConfig.PRODUCT_CACHE, key = "#id")
     public ProductResponse getProductById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
         return productMapper.toDto(product);
     }
 
+    @Cacheable(value = CacheConfig.CATEGORY_PRODUCTS_CACHE, key = "#categoryId + '_' + #pageable.toString()")
     public Page<ProductResponse> getProductsByCategory(Long categoryId, Pageable pageable) {
         return productMapper.toDtoPage(productRepository.findByCategoryId(categoryId, pageable));
     }
 
+    @Cacheable(value = CacheConfig.SEARCH_PRODUCTS_CACHE, key = "#keyword + '_' + #pageable.toString()")
     public Page<ProductResponse> searchProducts(String keyword, Pageable pageable) {
         return productMapper.toDtoPage(productRepository.search(keyword, pageable));
     }
 
     @Transactional
+    @CacheEvict(value = {CacheConfig.PRODUCTS_CACHE, CacheConfig.CATEGORY_PRODUCTS_CACHE, CacheConfig.SEARCH_PRODUCTS_CACHE}, allEntries = true)
     public ProductResponse createProduct(ProductRequest productRequest) {
         User currentUser = userService.getCurrentUser();
         
@@ -73,6 +82,10 @@ public class ProductService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = CacheConfig.PRODUCT_CACHE, key = "#id"),
+        @CacheEvict(value = {CacheConfig.PRODUCTS_CACHE, CacheConfig.CATEGORY_PRODUCTS_CACHE, CacheConfig.SEARCH_PRODUCTS_CACHE}, allEntries = true)
+    })
     public ProductResponse updateProduct(Long id, ProductRequest productRequest) {
         User currentUser = userService.getCurrentUser();
         
@@ -100,6 +113,10 @@ public class ProductService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = CacheConfig.PRODUCT_CACHE, key = "#id"),
+        @CacheEvict(value = {CacheConfig.PRODUCTS_CACHE, CacheConfig.CATEGORY_PRODUCTS_CACHE, CacheConfig.SEARCH_PRODUCTS_CACHE}, allEntries = true)
+    })
     public void deleteProduct(Long id) {
         User currentUser = userService.getCurrentUser();
         
@@ -138,15 +155,17 @@ public class ProductService {
      */
     public void updateProductStock(List<OrderItem> orderItems) {
         for (var orderItem : orderItems) {
-            Product product = orderItem.getProduct();
-            Integer orderedQuantity = orderItem.getQuantity();
-            
-            // Trừ số lượng đã đặt từ stock hiện có
-            product.setStock(product.getStock() - orderedQuantity);
-            
-            // Lưu lại thông tin sản phẩm đã cập nhật vào database
-            productRepository.save(product);
+            updateSingleProductStock(orderItem);
         }
+    }
+    
+    @CacheEvict(value = CacheConfig.PRODUCT_CACHE, key = "#orderItem.product.id")
+    private void updateSingleProductStock(OrderItem orderItem) {
+        Product product = orderItem.getProduct();
+        Integer orderedQuantity = orderItem.getQuantity();
+        
+        product.setStock(product.getStock() - orderedQuantity);
+        productRepository.save(product);
     }
     
     /**
@@ -155,15 +174,17 @@ public class ProductService {
      */
     public void restoreProductStock(List<OrderItem> orderItems) {
         for (var orderItem : orderItems) {
-            Product product = orderItem.getProduct();
-            Integer orderedQuantity = orderItem.getQuantity();
-            
-            // Cộng lại số lượng đã đặt vào stock hiện có
-            product.setStock(product.getStock() + orderedQuantity);
-            
-            // Lưu lại thông tin sản phẩm đã cập nhật vào database
-            productRepository.save(product);
+            restoreSingleProductStock(orderItem);
         }
+    }
+    
+    @CacheEvict(value = CacheConfig.PRODUCT_CACHE, key = "#orderItem.product.id")
+    private void restoreSingleProductStock(OrderItem orderItem) {
+        Product product = orderItem.getProduct();
+        Integer orderedQuantity = orderItem.getQuantity();
+        
+        product.setStock(product.getStock() + orderedQuantity);
+        productRepository.save(product);
     }
     // private ProductResponse convertToProductResponse(Product product) {
     //     ProductResponse response = new ProductResponse();

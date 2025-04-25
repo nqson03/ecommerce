@@ -1,5 +1,6 @@
 package com.ecommerce.service;
 
+import com.ecommerce.config.CacheConfig;
 import com.ecommerce.dto.ReviewRequest;
 import com.ecommerce.exception.ResourceNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
@@ -11,6 +12,9 @@ import com.ecommerce.model.User;
 import com.ecommerce.repository.ProductRepository;
 import com.ecommerce.repository.ReviewRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,11 +35,13 @@ public class ReviewService {
     @Autowired
     private UserService userService;
 
+    @Cacheable(value = CacheConfig.REVIEWS_CACHE, key = "#productId + '_' + #pageable.toString()")
     public Page<ReviewResponse> getProductReviews(Long productId, Pageable pageable) {
         return reviewMapper.toResponsePage(reviewRepository.findByProductId(productId, pageable));
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.REVIEWS_CACHE, allEntries = true)
     public ReviewResponse createReview(ReviewRequest reviewRequest) {
         User currentUser = userService.getCurrentUser();
         
@@ -58,6 +64,7 @@ public class ReviewService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.REVIEWS_CACHE, allEntries = true)
     public ReviewResponse updateReview(Long id, ReviewRequest reviewRequest) {
         User currentUser = userService.getCurrentUser();
         
@@ -86,6 +93,7 @@ public class ReviewService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheConfig.REVIEWS_CACHE, allEntries = true)
     public void deleteReview(Long id) {
         User currentUser = userService.getCurrentUser();
         
@@ -105,6 +113,7 @@ public class ReviewService {
         updateProductAverageRating(product);
     }
 
+    @Transactional
     private void updateProductAverageRating(Product product) {
         Double averageRating = reviewRepository.findAverageRatingByProductId(product.getId());
         product.setAverageRating(averageRating != null ? averageRating : 0.0);

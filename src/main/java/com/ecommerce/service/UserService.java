@@ -1,11 +1,15 @@
 package com.ecommerce.service;
 
+import com.ecommerce.config.CacheConfig;
 import com.ecommerce.dto.UserDto;
 import com.ecommerce.exception.ResourceNotFoundException;
 import com.ecommerce.mapper.UserMapper;
 import com.ecommerce.model.User;
 import com.ecommerce.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -35,16 +39,18 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
     }
     
-    public UserDto getCurrentUserInfo() {
+    @Cacheable(value = CacheConfig.USER_CACHE, key = "#id")
+    public UserDto getCurrentUserInfo(long id) {
         User user = getCurrentUser();
         return userMapper.toDto(user);
     }
     
     @Transactional
+    @CacheEvict(value = CacheConfig.USER_CACHE, key = "#result.id")
     public UserDto updateCurrentUser(UserDto userDto) {
         User currentUser = getCurrentUser();
         
-        // Không cho phép thay đổi username và role qua endpoint này
+        // Không cho phép thay đổi id, username và role qua endpoint này
         userDto.setId(currentUser.getId());
         userDto.setUsername(currentUser.getUsername());
         userDto.setRole(currentUser.getRole());
@@ -56,7 +62,8 @@ public class UserService {
     }
     
     @Transactional
-    public void changePassword(String currentPassword, String newPassword) {
+    @CacheEvict(value = CacheConfig.USER_CACHE, key = "#id")
+    public void changePassword(long id, String currentPassword, String newPassword) {
         User user = getCurrentUser();
         
         // Kiểm tra mật khẩu hiện tại
@@ -70,7 +77,8 @@ public class UserService {
     }
     
     @Transactional
-    public void deleteCurrentUser(String password) {
+    @CacheEvict(value = CacheConfig.USER_CACHE, key = "#id")
+    public void deleteCurrentUser(long id, String password) {
         User user = getCurrentUser();
         
         // Kiểm tra mật khẩu
@@ -82,12 +90,17 @@ public class UserService {
     }
     
     // Admin functions
+    @Cacheable(value = CacheConfig.USERS_CACHE, key = "#pageable.toString()")
     public Page<UserDto> getAllUsers(Pageable pageable) {
         Page<User> users = userRepository.findAll(pageable);
         return users.map(userMapper::toDto);
     }
     
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = CacheConfig.USER_CACHE, key = "#userId"),
+        @CacheEvict(value = CacheConfig.USERS_CACHE, allEntries = true)
+    })
     public UserDto updateUserRole(Long userId, User.Role role) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));

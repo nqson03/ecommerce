@@ -1,5 +1,6 @@
 package com.ecommerce.controller;
 
+import com.ecommerce.annotation.RateLimit;
 import com.ecommerce.dto.JwtResponse;
 import com.ecommerce.dto.ApiResponse;
 import com.ecommerce.dto.LoginRequest;
@@ -21,6 +22,7 @@ public class AuthController {
     private AuthService authService;
 
     @PostMapping("/signin")
+    @RateLimit(anonymousLimit = 5, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<JwtResponse>> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         JwtResponse jwtResponse = authService.authenticateUser(loginRequest);
         ApiResponse<JwtResponse> response = ApiResponse.success("Login successful", jwtResponse);
@@ -28,6 +30,7 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
+    @RateLimit(anonymousLimit = 3, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<?>> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
         authService.registerUser(signUpRequest);
         ApiResponse<JwtResponse> response = ApiResponse.success("User registered successfully!", null);
