@@ -22,7 +22,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"user1\",\n    \"email\": \"user1@example.com\",\n    \"password\": \"password123\",\n    \"fullName\": \"User One\",\n    \"phoneNumber\": \"1234567890\",\n    \"address\": \"123 Main St, City, Country\"\n}"
+							"raw": "{\n    \"username\": \"user11\",\n    \"email\": \"user10@example.com\",\n    \"password\": \"password123\",\n    \"fullName\": \"User One\",\n    \"phoneNumber\": \"1234567890\",\n    \"address\": \"123 Main St, City, Country\"\n}"
 						},
 						"url": {
 							"raw": "http://localhost:8080/api/auth/signup",
@@ -53,7 +53,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"usernameOrEmail\": \"user1\",\n    \"password\": \"password123\"\n}"
+							"raw": "{\n    \"usernameOrEmail\": \"admin\",\n    \"password\": \"password123\"\n}"
 						},
 						"url": {
 							"raw": "http://localhost:8080/api/auth/signin",
@@ -206,6 +206,16 @@
 				{
 					"name": "Create Product",
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ0MjIyMTM4LCJleHAiOjE3NDQzMDg1Mzh9.UzlCEiIqjORj1WU_nnfLQ06YXnHNsVfusAWHVMh5T5N54NSk4gKBWpNE5VKjllSDe7Dqxj23ygqGQR4dpqqQfQ",
+									"type": "string"
+								}
+							]
+						},
 						"method": "POST",
 						"header": [
 							{
@@ -350,6 +360,16 @@
 				{
 					"name": "Create Category",
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ0MjIyMTM4LCJleHAiOjE3NDQzMDg1Mzh9.UzlCEiIqjORj1WU_nnfLQ06YXnHNsVfusAWHVMh5T5N54NSk4gKBWpNE5VKjllSDe7Dqxj23ygqGQR4dpqqQfQ",
+									"type": "string"
+								}
+							]
+						},
 						"method": "POST",
 						"header": [
 							{
@@ -363,7 +383,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"Electronics\",\n    \"description\": \"Electronic devices and gadgets\",\n    \"imageUrl\": \"http://localhost:8080/api/files/electronics.jpg\",\n    \"parentId\": null\n}"
+							"raw": "{\n    \"name\": \"test1\",\n    \"description\": \"Electronic devices and gadgets\",\n    \"imageUrl\": \"http://localhost:8080/api/files/electronics.jpg\"\n}"
 						},
 						"url": {
 							"raw": "http://localhost:8080/api/categories",
@@ -733,6 +753,16 @@
 				{
 					"name": "Get All Orders (Admin)",
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "",
+									"type": "string"
+								}
+							]
+						},
 						"method": "GET",
 						"header": [
 							{
@@ -1056,7 +1086,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyMTAiLCJyb2xlcyI6WyJST0xFX1VTRVIiXSwiaWF0IjoxNzQ0MzA1MTMwLCJleHAiOjE3NDQzOTE1MzB9.ODImQEbm42saYwn3fStrKabubRko50C6fI-_Pgy7znZU4gJvOnXbcRMXwemI5_UvWPgfb2SXgB_bsb38DF-6lg",
+									"value": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ0NzI0NzY2LCJleHAiOjE3NDQ4MTExNjZ9.ymlWyJl85i6mJdHKBepDUjv3ruYHHQWl2Su3ZYPxuAN1X4v2JLyG3i3W_y7BN0AgvHpqNK-nWsZdk4qWMHQM1A",
 									"type": "string"
 								}
 							]
@@ -1064,7 +1094,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8080/api/auth/",
+							"raw": "http://localhost:8080/api/users/me",
 							"protocol": "http",
 							"host": [
 								"localhost"
@@ -1072,8 +1102,8 @@
 							"port": "8080",
 							"path": [
 								"api",
-								"auth",
-								""
+								"users",
+								"me"
 							]
 						}
 					},
@@ -1255,7 +1285,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyMTAiLCJyb2xlcyI6WyJST0xFX1VTRVIiXSwiaWF0IjoxNzQ0MjkwNjkzLCJleHAiOjE3NDQzNzcwOTN9.27jMBR2wca1QWxnDfj6dbWDbX8fKb8KLzwSVpHcSSZM2WGX95cMBa9YabqshaBHvdvacFzairfKYfTp1CqgSGQ",
+									"value": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ0NzI1OTAwLCJleHAiOjE3NDQ4MTIzMDB9.17nYMZ9hjYyVX4GSXeU0p4peW_TZKM_2tN7_aPP43HYhCUPYd_iXzUzE5OeywgasctHVnOfB9H25hBOGFke0ew",
 									"type": "string"
 								}
 							]
@@ -1263,7 +1293,7 @@
 						"method": "PUT",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8080/api/users/admin/6?role=ROLE_SELLER",
+							"raw": "http://localhost:8080/api/users/admin/8/role?role=ROLE_SELLER",
 							"protocol": "http",
 							"host": [
 								"localhost"
@@ -1273,13 +1303,51 @@
 								"api",
 								"users",
 								"admin",
-								"6"
+								"8",
+								"role"
 							],
 							"query": [
 								{
 									"key": "role",
 									"value": "ROLE_SELLER"
 								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Payment",
+			"item": [
+				{
+					"name": "Create Payment",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyMTIiLCJyb2xlcyI6WyJST0xFX1VTRVIiXSwiaWF0IjoxNzQ0Nzk0MDcwLCJleHAiOjE3NDQ4ODA0NzB9.oJBzIcQFEj_KwmaR8KS3UAyXsdTqVA9HShKruOfQ3XCdbqkznPtXR93qeFAlY0UK5OmIWfKoS5HWgiszidC4Tg",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/payment/create-payment/10",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"payment",
+								"create-payment",
+								"10"
 							]
 						}
 					},

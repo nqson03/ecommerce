@@ -82,3 +82,9 @@ spring.cache.redis.time-to-live=600000
 ```bash
 mvn spring-boot:run
 ```
+
+## API Documentation (Swagger)
+
+Swagger UI is integrated for API documentation and testing.
+
+**Access Swagger UI:** Once the application is running, navigate to `http://localhost:8080/swagger-ui/index.html` in your browser.

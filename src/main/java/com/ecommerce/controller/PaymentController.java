@@ -5,6 +5,13 @@ import com.ecommerce.dto.ApiResponse;
 import com.ecommerce.model.Order;
 import com.ecommerce.service.OrderService;
 import com.ecommerce.service.VNPayService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+// Using fully qualified name for Swagger ApiResponse to avoid collision with DTO ApiResponse
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +30,7 @@ import java.util.Map;
 
 @Controller
 @RequestMapping("/api/payment")
+@Tag(name = "Payment", description = "API quản lý thanh toán")
 public class PaymentController {
 
     @Autowired
@@ -37,10 +45,25 @@ public class PaymentController {
      * @param request HttpServletRequest để lấy địa chỉ IP
      * @return URL thanh toán VNPay
      */
+    @Operation(summary = "Tạo URL thanh toán", description = "Tạo URL thanh toán VNPay cho đơn hàng", 
+            security = {@SecurityRequirement(name = "bearerAuth")})
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tạo URL thanh toán thành công"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Đơn hàng không hợp lệ hoặc đã thanh toán",
+                content = @Content),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Chưa xác thực",
+                content = @Content),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Không có quyền truy cập",
+                content = @Content),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Không tìm thấy đơn hàng",
+                content = @Content)
+    })
     @GetMapping("/create-payment/{orderId}")
     @PreAuthorize("hasRole('USER')")
     @RateLimit(authenticatedLimit = 10, refreshPeriod = 60)
-    public ResponseEntity<ApiResponse<?>> createPayment(@PathVariable Long orderId, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<?>> createPayment(
+            @Parameter(description = "ID của đơn hàng", required = true) @PathVariable Long orderId, 
+            HttpServletRequest request) {
         try {
            // Lấy thông tin người dùng hiện tại
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -87,9 +110,14 @@ public class PaymentController {
     @Value("${app.frontend.payment-result-url}")
     private String frontendPaymentResultUrl;
 
+    @Operation(summary = "Xử lý callback từ VNPay", description = "Xử lý kết quả thanh toán từ VNPay và chuyển hướng đến trang frontend")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "302", description = "Chuyển hướng đến trang kết quả thanh toán")
+    })
     @GetMapping("/vnpay-return")
     // @RateLimit(authenticatedLimit = 20, refreshPeriod = 60, anonymousLimit = 10)
-    public String vnpayReturn(HttpServletRequest request) {
+    public String vnpayReturn(
+            @Parameter(description = "Request chứa thông tin từ VNPay") HttpServletRequest request) {
         Map<String, String> vnpParams = new HashMap<>();
         Enumeration<String> paramNames = request.getParameterNames();
         
