@@ -40,7 +40,7 @@ public class VNPayService {
         String vnpTxnRef = order.getOrderNumber();
         String vnpOrderInfo = "Thanh toan don hang " + vnpTxnRef;
         String vnpOrderType = "billpayment";
-        String vnpAmount = String.valueOf(order.getTotalAmount().multiply(new java.math.BigDecimal(100)).intValue());
+        String vnpAmount = order.getTotalAmount().multiply(new java.math.BigDecimal(100)).toBigInteger().toString();
         
         Map<String, String> vnpParams = new HashMap<>();
         vnpParams.put("vnp_Version", vnpVersion);
