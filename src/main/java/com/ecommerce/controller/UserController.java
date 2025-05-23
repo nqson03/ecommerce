@@ -6,7 +6,7 @@ import com.ecommerce.dto.DeleteAccountRequest;
 import com.ecommerce.dto.PasswordChangeRequest;
 import com.ecommerce.dto.UserDto;
 import com.ecommerce.model.User;
-import com.ecommerce.service.UserService;
+import com.ecommerce.service.interfaces.UserService;
 import com.ecommerce.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

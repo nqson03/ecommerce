@@ -1,7 +1,8 @@
-package com.ecommerce.service;
+package com.ecommerce.service.impl;
 
 import com.ecommerce.dto.PaymentResult;
 import com.ecommerce.model.Order;
+import com.ecommerce.service.interfaces.VNPayService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +15,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 @Service
-public class VNPayService {
+public class VNPayServiceImpl implements VNPayService {
 
     @Value("${vnpay.version:2.1.0}")
     private String vnpVersion;
@@ -34,12 +35,6 @@ public class VNPayService {
     @Value("${vnpay.ipnUrl:http://localhost:8080/api/payment/vnpay-ipn}")
     private String vnpIpnUrl;
 
-    /**
-     * Tạo URL thanh toán VNPay
-     * @param order Đơn hàng cần thanh toán
-     * @param ipAddress Địa chỉ IP của người dùng
-     * @return URL thanh toán VNPay
-     */
     public String createPaymentUrl(Order order, String ipAddress) {
         String vnpTxnRef = order.getOrderNumber();
         String vnpOrderInfo = "Thanh toan don hang " + vnpTxnRef;
@@ -61,7 +56,6 @@ public class VNPayService {
         vnpParams.put("vnp_OrderType", vnpOrderType);
         vnpParams.put("vnp_Locale", "vn");
         vnpParams.put("vnp_ReturnUrl", vnpReturnUrl);
-        // vnpParams.put("vnp_IpnUrl", vnpIpnUrl);
         vnpParams.put("vnp_IpAddr", ipAddress);
         
         Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
@@ -108,11 +102,6 @@ public class VNPayService {
         return vnpPayUrl + "?" + queryUrl;
     }
     
-    /**
-     * Xác thực callback từ VNPay
-     * @param vnpParams Các tham số từ VNPay gửi về
-     * @return true nếu xác thực thành công, false nếu thất bại
-     */
     public boolean validateCallback(Map<String, String> vnpParams) {
         String vnpSecureHash = vnpParams.get("vnp_SecureHash");
         if (vnpSecureHash == null) {
@@ -157,21 +146,11 @@ public class VNPayService {
         return calculatedHash.equals(vnpSecureHash);
     }
     
-    /**
-     * Kiểm tra trạng thái thanh toán từ VNPay
-     * @param vnpParams Các tham số từ VNPay gửi về
-     * @return true nếu thanh toán thành công, false nếu thất bại
-     */
     public boolean isPaymentSuccess(Map<String, String> vnpParams) {
         String vnpResponseCode = vnpParams.get("vnp_ResponseCode");
         return "00".equals(vnpResponseCode);
     }
     
-    /**
-     * Lấy thông tin chi tiết về trạng thái thanh toán
-     * @param vnpParams Các tham số từ VNPay gửi về
-     * @return Thông tin chi tiết về kết quả thanh toán
-     */
     public PaymentResult getPaymentResult(Map<String, String> vnpParams) {
         String vnpResponseCode = vnpParams.get("vnp_ResponseCode");
         PaymentResult result = new PaymentResult();
@@ -243,12 +222,6 @@ public class VNPayService {
         return result;
     }
     
-    /**
-     * Tạo mã HMAC SHA512
-     * @param key Khóa bí mật
-     * @param data Dữ liệu cần mã hóa
-     * @return Chuỗi mã hóa
-     */
     private String hmacSHA512(String key, String data) {
         try {
             Mac sha512_HMAC = Mac.getInstance("HmacSHA512");
@@ -262,11 +235,6 @@ public class VNPayService {
         }
     }
     
-    /**
-     * Chuyển đổi mảng byte thành chuỗi hex
-     * @param bytes Mảng byte cần chuyển đổi
-     * @return Chuỗi hex
-     */
     private String bytesToHex(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
         for (byte b : bytes) {
@@ -274,4 +242,4 @@ public class VNPayService {
         }
         return sb.toString();
     }
-}
+} 

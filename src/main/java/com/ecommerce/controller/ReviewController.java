@@ -4,7 +4,7 @@ import com.ecommerce.annotation.RateLimit;
 import com.ecommerce.dto.ApiResponse;
 import com.ecommerce.dto.ReviewRequest;
 import com.ecommerce.dto.ReviewResponse;
-import com.ecommerce.service.ReviewService;
+import com.ecommerce.service.interfaces.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

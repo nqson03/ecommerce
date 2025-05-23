@@ -1,4 +1,4 @@
-package com.ecommerce.service;
+package com.ecommerce.service.impl;
 
 import com.ecommerce.dto.JwtResponse;
 import com.ecommerce.dto.LoginRequest;
@@ -6,6 +6,7 @@ import com.ecommerce.dto.SignupRequest;
 import com.ecommerce.model.User;
 import com.ecommerce.repository.UserRepository;
 import com.ecommerce.security.JwtTokenProvider;
+import com.ecommerce.service.interfaces.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,7 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
-public class AuthService {
+public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -40,11 +41,6 @@ public class AuthService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = tokenProvider.generateToken(authentication);
         
-        // UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        
-        // User user = userRepository.findByUsername(userDetails.getUsername())
-        //         .orElseThrow(() -> new RuntimeException("User not found"));
-
         return new JwtResponse(jwt);
     }
 
@@ -69,4 +65,4 @@ public class AuthService {
 
         userRepository.save(user);
     }
-}
+} 

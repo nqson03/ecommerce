@@ -1,4 +1,4 @@
-package com.ecommerce.service;
+package com.ecommerce.service.impl;
 
 import com.ecommerce.config.CacheConfig;
 import com.ecommerce.dto.CategoryRequest;
@@ -7,6 +7,7 @@ import com.ecommerce.dto.CategoryDto;
 import com.ecommerce.mapper.CategoryMapper;
 import com.ecommerce.model.Category;
 import com.ecommerce.repository.CategoryRepository;
+import com.ecommerce.service.interfaces.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -17,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
-public class CategoryService {
+public class CategoryServiceImpl implements CategoryService {
 
     @Autowired
     private CategoryRepository categoryRepository;
@@ -79,4 +80,4 @@ public class CategoryService {
         
         categoryRepository.delete(category);
     }
-}
+} 

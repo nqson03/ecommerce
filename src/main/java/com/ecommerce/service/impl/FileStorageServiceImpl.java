@@ -1,5 +1,6 @@
-package com.ecommerce.service;
+package com.ecommerce.service.impl;
 
+import com.ecommerce.service.interfaces.FileStorageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -16,11 +17,11 @@ import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 @Service
-public class FileStorageService {
+public class FileStorageServiceImpl implements FileStorageService {
 
     private final Path fileStorageLocation;
 
-    public FileStorageService(@Value("${file.upload-dir:uploads}") String uploadDir) {
+    public FileStorageServiceImpl(@Value("${file.upload-dir:uploads}") String uploadDir) {
         this.fileStorageLocation = Paths.get(uploadDir)
                 .toAbsolutePath().normalize();
 
@@ -72,4 +73,4 @@ public class FileStorageService {
             throw new RuntimeException("File not found " + fileName, ex);
         }
     }
-}
+} 

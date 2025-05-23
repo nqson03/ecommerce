@@ -2,7 +2,7 @@ package com.ecommerce.controller;
 
 import com.ecommerce.annotation.RateLimit;
 import com.ecommerce.dto.ApiResponse;
-import com.ecommerce.service.FileStorageService;
+import com.ecommerce.service.interfaces.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

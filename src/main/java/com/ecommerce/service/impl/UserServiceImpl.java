@@ -1,4 +1,4 @@
-package com.ecommerce.service;
+package com.ecommerce.service.impl;
 
 import com.ecommerce.config.CacheConfig;
 import com.ecommerce.dto.UserDto;
@@ -6,6 +6,7 @@ import com.ecommerce.exception.ResourceNotFoundException;
 import com.ecommerce.mapper.UserMapper;
 import com.ecommerce.model.User;
 import com.ecommerce.repository.UserRepository;
+import com.ecommerce.service.interfaces.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class UserService {
+public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserRepository userRepository;
@@ -110,4 +111,4 @@ public class UserService {
         
         return userMapper.toDto(updatedUser);
     }
-}
+} 

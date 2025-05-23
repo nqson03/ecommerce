@@ -4,7 +4,7 @@ import com.ecommerce.annotation.RateLimit;
 import com.ecommerce.dto.ApiResponse;
 import com.ecommerce.dto.CategoryDto;
 import com.ecommerce.dto.CategoryRequest;
-import com.ecommerce.service.CategoryService;
+import com.ecommerce.service.interfaces.CategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

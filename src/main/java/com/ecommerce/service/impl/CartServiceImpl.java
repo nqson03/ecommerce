@@ -1,4 +1,4 @@
-package com.ecommerce.service;
+package com.ecommerce.service.impl;
 
 import com.ecommerce.config.CacheConfig;
 import com.ecommerce.dto.CartItemRequest;
@@ -11,6 +11,7 @@ import com.ecommerce.model.User;
 import com.ecommerce.mapper.CartMapper;
 import com.ecommerce.repository.CartRepository;
 import com.ecommerce.repository.ProductRepository;
+import com.ecommerce.service.interfaces.CartService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -20,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 @Service
-public class CartService {
+public class CartServiceImpl implements CartService {
 
     @Autowired
     private CartRepository cartRepository;
@@ -135,4 +136,4 @@ public class CartService {
         cart = cartRepository.save(cart);
         return cartMapper.toDto(cart);
     }
-}
+} 

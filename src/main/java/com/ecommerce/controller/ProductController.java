@@ -4,7 +4,7 @@ import com.ecommerce.annotation.RateLimit;
 import com.ecommerce.dto.ApiResponse;
 import com.ecommerce.dto.ProductRequest;
 import com.ecommerce.dto.ProductResponse;
-import com.ecommerce.service.ProductService;
+import com.ecommerce.service.interfaces.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

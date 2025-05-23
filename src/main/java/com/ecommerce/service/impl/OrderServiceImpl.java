@@ -1,4 +1,4 @@
-package com.ecommerce.service;
+package com.ecommerce.service.impl;
 
 import com.ecommerce.config.CacheConfig;
 import com.ecommerce.dto.OrderRequest;
@@ -10,6 +10,9 @@ import com.ecommerce.model.Order;
 import com.ecommerce.model.OrderItem;
 import com.ecommerce.model.User;
 import com.ecommerce.repository.OrderRepository;
+import com.ecommerce.service.interfaces.CartService;
+import com.ecommerce.service.interfaces.OrderService;
+import com.ecommerce.service.interfaces.StockService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -17,7 +20,6 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -26,7 +28,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-public class OrderService {
+public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private OrderRepository orderRepository;
@@ -34,26 +36,20 @@ public class OrderService {
     @Autowired
     private CartService cartService;
 
-    // Removed UserService injection as getCurrentUser is no longer called here
-    // @Autowired
-    // private UserService userService;
-
     @Autowired
-    private ProductService productService;
+    private StockService stockService;
 
     @Autowired
     private OrderMapper orderMapper;
     
     @Cacheable(value = CacheConfig.USER_ORDERS_CACHE, key = "#userId + '_' + #pageable.toString()")
     public Page<OrderDto> getUserOrders(Long userId, Pageable pageable) {
-
         Page<Order> orders= orderRepository.findByUserId(userId, pageable);
         return orderMapper.toDtoPage(orders);
     }
 
     @Cacheable(value = CacheConfig.ORDER_CACHE, key = "#id")
     public OrderDto getOrderById(Long id, User currentUser) {
-        
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
         
@@ -64,21 +60,14 @@ public class OrderService {
         }
         
         OrderDto orderDto = orderMapper.toDto(order);
-
         return orderDto;
     }
     
-    /**
-     * Lấy entity Order theo ID (sử dụng nội bộ)
-     */
     public Order getOrderEntityById(Long id) {
         return orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
     }
     
-    /**
-     * Tìm đơn hàng theo mã đơn hàng
-     */
     public Optional<Order> findByOrderNumber(String orderNumber) {
         return orderRepository.findByOrderNumber(orderNumber);
     }
@@ -96,7 +85,7 @@ public class OrderService {
         }
         
         // Check stock availability before creating order
-        productService.checkStockAvailability(cart.getItems());
+        stockService.checkStockAvailability(cart.getItems());
         
         Order order = new Order();
         order.setUser(currentUser);
@@ -135,7 +124,7 @@ public class OrderService {
         
         // Chỉ cập nhật stock nếu không phải thanh toán VNPay
         if (!"VNPAY".equals(orderRequest.getPaymentMethod())) {
-            productService.updateProductStock(savedOrder.getItems());
+            stockService.updateProductStock(savedOrder.getItems());
         }
         
         // Clear the cart after creating the order
@@ -151,7 +140,6 @@ public class OrderService {
         @CacheEvict(value = CacheConfig.ORDERS_CACHE, allEntries = true)
     })
     public OrderDto cancelOrder(Long id, User currentUser) {
-        
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
         
@@ -170,7 +158,7 @@ public class OrderService {
         order.setStatus(Order.OrderStatus.CANCELLED);
         
         // Restore product stock when order is cancelled
-        productService.restoreProductStock(order.getItems());
+        stockService.restoreProductStock(order.getItems());
         
         return orderMapper.toDto(orderRepository.save(order));
     }
@@ -201,21 +189,12 @@ public class OrderService {
             throw new IllegalArgumentException("Either order id or order number must be provided");
         }
 
-        // Optional: Add authorization check based on currentUser if needed
-        // Example: Only admin can update status, or user can update specific statuses
-        // if (!currentUser.getRole().equals(User.Role.ROLE_ADMIN)) {
-        //     // Check if user owns the order and is allowed to change to this status
-        //     if (!order.getUser().getId().equals(currentUser.getId()) || !isStatusUpdateAllowedForUser(order.getStatus(), status)) {
-        //         throw new RuntimeException("You don't have permission to update this order status");
-        //     }
-        // }
-        
         // Nếu đơn hàng đang ở trạng thái PENDING và chuyển sang PROCESSING
         // và phương thức thanh toán là VNPAY, cập nhật stock
         if (order.getStatus() == Order.OrderStatus.PENDING && 
             status == Order.OrderStatus.PROCESSING && 
             "VNPAY".equals(order.getPaymentMethod())) {
-            productService.updateProductStock(order.getItems());
+            stockService.updateProductStock(order.getItems());
         }
 
         order.setStatus(status);
@@ -230,37 +209,4 @@ public class OrderService {
     private String generateOrderNumber() {
         return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
-    
-    // /**
-    //  * Cập nhật trạng thái đơn hàng theo mã đơn hàng
-    //  */
-    // @Transactional
-    // public OrderDto updateOrderStatusByOrderNumber(String orderNumber, Order.OrderStatus status) {
-    //     Order order = orderRepository.findByOrderNumber(orderNumber)
-    //             .orElseThrow(() -> new ResourceNotFoundException("Order not found with number: " + orderNumber));
-        
-    //     // Nếu đơn hàng đang ở trạng thái PENDING và chuyển sang PROCESSING
-    //     // và phương thức thanh toán là VNPAY, cập nhật stock
-    //     if (order.getStatus() == Order.OrderStatus.PENDING && 
-    //         status == Order.OrderStatus.PROCESSING && 
-    //         "VNPAY".equals(order.getPaymentMethod())) {
-    //         productService.updateProductStock(order.getItems());
-    //     }
-        
-    //     order.setStatus(status);
-        
-    //     if (status == Order.OrderStatus.DELIVERED) {
-    //         order.setDeliveryDate(LocalDateTime.now());
-    //     }
-        
-    //     return orderMapper.toDto(orderRepository.save(order));
-    // }
-    
-    // /**
-    //  * Tạo URL thanh toán VNPay cho đơn hàng
-    //  */
-    // public String createVNPayPaymentUrl(Order order, String ipAddress) {
-    //     return vnPayService.createPaymentUrl(order, ipAddress);
-    // }
-
-}
+} 

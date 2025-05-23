@@ -5,7 +5,8 @@ import com.ecommerce.dto.JwtResponse;
 import com.ecommerce.dto.ApiResponse;
 import com.ecommerce.dto.LoginRequest;
 import com.ecommerce.dto.SignupRequest;
-import com.ecommerce.service.AuthService;
+import com.ecommerce.service.interfaces.AuthService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

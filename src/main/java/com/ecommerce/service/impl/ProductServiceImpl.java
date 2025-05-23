@@ -1,4 +1,4 @@
-package com.ecommerce.service;
+package com.ecommerce.service.impl;
 
 import com.ecommerce.config.CacheConfig;
 import com.ecommerce.dto.ProductRequest;
@@ -8,10 +8,10 @@ import com.ecommerce.mapper.ProductMapper;
 import com.ecommerce.model.Category;
 import com.ecommerce.model.Product;
 import com.ecommerce.model.User;
-import com.ecommerce.model.OrderItem;
-import com.ecommerce.model.CartItem;
 import com.ecommerce.repository.CategoryRepository;
 import com.ecommerce.repository.ProductRepository;
+import com.ecommerce.service.interfaces.ProductService;
+import com.ecommerce.service.interfaces.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -20,10 +20,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
 
 @Service
-public class ProductService {
+public class ProductServiceImpl implements ProductService {
 
     @Autowired
     private ProductRepository productRepository;
@@ -131,84 +130,4 @@ public class ProductService {
         
         productRepository.delete(product);
     }
-
-        /**
-     * Kiểm tra xem có đủ số lượng sản phẩm trong kho không
-     * @param cartItems Danh sách sản phẩm trong giỏ hàng
-     * @throws RuntimeException nếu không đủ số lượng sản phẩm
-     */
-    public void checkStockAvailability(List<CartItem> cartItems) {
-        for (var cartItem : cartItems) {
-            Product product = cartItem.getProduct();
-            Integer requestedQuantity = cartItem.getQuantity();
-            
-            if (product.getStock() < requestedQuantity) {
-                throw new RuntimeException("Insufficient quantity of product " + product.getName() +
-                    " in stock. Only " + product.getStock() + " items remaining.");
-            }
-        }
-    }
-    
-    /**
-     * Cập nhật số lượng sản phẩm trong kho sau khi tạo đơn hàng
-     * @param orderItems Danh sách sản phẩm trong đơn hàng
-     */
-    public void updateProductStock(List<OrderItem> orderItems) {
-        for (var orderItem : orderItems) {
-            updateSingleProductStock(orderItem);
-        }
-    }
-    
-    @CacheEvict(value = CacheConfig.PRODUCT_CACHE, key = "#orderItem.product.id")
-    private void updateSingleProductStock(OrderItem orderItem) {
-        Product product = orderItem.getProduct();
-        Integer orderedQuantity = orderItem.getQuantity();
-        
-        product.setStock(product.getStock() - orderedQuantity);
-        productRepository.save(product);
-    }
-    
-    /**
-     * Khôi phục số lượng sản phẩm trong kho khi hủy đơn hàng
-     * @param orderItems Danh sách sản phẩm trong đơn hàng
-     */
-    public void restoreProductStock(List<OrderItem> orderItems) {
-        for (var orderItem : orderItems) {
-            restoreSingleProductStock(orderItem);
-        }
-    }
-    
-    @CacheEvict(value = CacheConfig.PRODUCT_CACHE, key = "#orderItem.product.id")
-    private void restoreSingleProductStock(OrderItem orderItem) {
-        Product product = orderItem.getProduct();
-        Integer orderedQuantity = orderItem.getQuantity();
-        
-        product.setStock(product.getStock() + orderedQuantity);
-        productRepository.save(product);
-    }
-    // private ProductResponse convertToProductResponse(Product product) {
-    //     ProductResponse response = new ProductResponse();
-    //     response.setId(product.getId());
-    //     response.setName(product.getName());
-    //     response.setDescription(product.getDescription());
-    //     response.setPrice(product.getPrice());
-    //     response.setStock(product.getStock());
-    //     response.setImages(product.getImages());
-    //     response.setAverageRating(product.getAverageRating());
-    //     response.setCreatedAt(product.getCreatedAt());
-    //     response.setUpdatedAt(product.getUpdatedAt());
-        
-    //     ProductResponse.CategoryDto categoryDto = new ProductResponse.CategoryDto();
-    //     categoryDto.setId(product.getCategory().getId());
-    //     categoryDto.setName(product.getCategory().getName());
-    //     response.setCategory(categoryDto);
-        
-    //     ProductResponse.UserSummaryDto sellerDto = new ProductResponse.UserSummaryDto();
-    //     sellerDto.setId(product.getSeller().getId());
-    //     sellerDto.setUsername(product.getSeller().getUsername());
-    //     sellerDto.setFullName(product.getSeller().getFullName());
-    //     response.setSeller(sellerDto);
-        
-    //     return response;
-    // }
-}
+} 

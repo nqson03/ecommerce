@@ -1,4 +1,4 @@
-package com.ecommerce.service;
+package com.ecommerce.service.impl;
 
 import com.ecommerce.config.CacheConfig;
 import com.ecommerce.dto.ReviewRequest;
@@ -11,6 +11,8 @@ import com.ecommerce.model.Review;
 import com.ecommerce.model.User;
 import com.ecommerce.repository.ProductRepository;
 import com.ecommerce.repository.ReviewRepository;
+import com.ecommerce.service.interfaces.ReviewService;
+import com.ecommerce.service.interfaces.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -20,7 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class ReviewService {
+public class ReviewServiceImpl implements ReviewService {
 
     @Autowired
     private ReviewRepository reviewRepository;
@@ -118,4 +120,4 @@ public class ReviewService {
         product.setAverageRating(averageRating != null ? averageRating : 0.0);
         productRepository.save(product);
     }
-}
+} 
