@@ -2,19 +2,19 @@ package com.ecommerce.controller;
 
 import com.ecommerce.annotation.RateLimit;
 import com.ecommerce.dto.ApiResponse;
-import com.ecommerce.model.Order;
-import com.ecommerce.service.OrderService;
-import com.ecommerce.service.VNPayService;
+import com.ecommerce.dto.PaymentResult;
+import com.ecommerce.service.PaymentService;
+import com.ecommerce.service.PaymentUrlBuilder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-// Using fully qualified name for Swagger ApiResponse to avoid collision with DTO ApiResponse
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,8 +22,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.http.HttpStatus;
-
 import org.springframework.stereotype.Controller;
+
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,17 +33,16 @@ import java.util.Map;
 @Tag(name = "Payment", description = "API quản lý thanh toán")
 public class PaymentController {
 
-    @Autowired
-    private VNPayService vnPayService;
+    private static final Logger logger = LoggerFactory.getLogger(PaymentController.class);
 
     @Autowired
-    private OrderService orderService;
+    private PaymentService paymentService;
+
+    @Autowired
+    private PaymentUrlBuilder urlBuilder;
 
     /**
      * Tạo URL thanh toán VNPay cho đơn hàng
-     * @param orderId ID của đơn hàng cần thanh toán
-     * @param request HttpServletRequest để lấy địa chỉ IP
-     * @return URL thanh toán VNPay
      */
     @Operation(summary = "Tạo URL thanh toán", description = "Tạo URL thanh toán VNPay cho đơn hàng", 
             security = {@SecurityRequirement(name = "bearerAuth")})
@@ -65,59 +64,103 @@ public class PaymentController {
             @Parameter(description = "ID của đơn hàng", required = true) @PathVariable Long orderId, 
             HttpServletRequest request) {
         try {
-           // Lấy thông tin người dùng hiện tại
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            String username = userDetails.getUsername();
-        
-            // Lấy thông tin đơn hàng
-            Order order = orderService.getOrderEntityById(orderId);
-        
-            // Kiểm tra xem người dùng hiện tại có phải là chủ sở hữu của đơn hàng không
-            if (!order.getUser().getUsername().equals(username)) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
-                    ApiResponse.error("You are not authorized to make payment for this order"));
-            }
-            
-            // Kiểm tra nếu đơn hàng đã thanh toán
-            if (!order.getPaymentMethod().equals("VNPAY") || 
-                order.getStatus() != Order.OrderStatus.PENDING) {
-                return ResponseEntity.badRequest().body(
-                    ApiResponse.error("Invalid order or payment has already been made"));
-            }
-            
-            // Lấy địa chỉ IP của người dùng
+            String username = getCurrentUsername();
             String ipAddress = request.getRemoteAddr();
             
-            // Tạo URL thanh toán
-            String paymentUrl = vnPayService.createPaymentUrl(order, ipAddress);
+            String paymentUrl = paymentService.createPaymentUrl(orderId, username, ipAddress);
             
-            Map<String, String> response = new HashMap<>();
-            response.put("paymentUrl", paymentUrl);
+            Map<String, String> response = Map.of("paymentUrl", paymentUrl);
+            return ResponseEntity.ok(ApiResponse.success("Payment URL created successfully", response));
             
-            return ResponseEntity.ok(ApiResponse.success("Payment URL created successfully",response));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(
-                ApiResponse.error("Error creating payment URL: " + e.getMessage()));
+            logger.error("Error creating payment URL for order {}: {}", orderId, e.getMessage(), e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Error creating payment URL: " + e.getMessage()));
         }
     }
 
     /**
      * Xử lý callback từ VNPay
-     * @param request HttpServletRequest chứa các tham số từ VNPay
-     * @return Chuyển hướng đến trang frontend thông báo kết quả thanh toán
      */
-    @Value("${app.frontend.payment-result-url}")
-    private String frontendPaymentResultUrl;
-
     @Operation(summary = "Xử lý callback từ VNPay", description = "Xử lý kết quả thanh toán từ VNPay và chuyển hướng đến trang frontend")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "302", description = "Chuyển hướng đến trang kết quả thanh toán")
     })
     @GetMapping("/vnpay-return")
-    // @RateLimit(authenticatedLimit = 20, refreshPeriod = 60, anonymousLimit = 10)
-    public String vnpayReturn(
-            @Parameter(description = "Request chứa thông tin từ VNPay") HttpServletRequest request) {
+    @RateLimit(authenticatedLimit = 20, refreshPeriod = 60, anonymousLimit = 10)
+    public String vnpayReturn(@Parameter(description = "Request chứa thông tin từ VNPay") HttpServletRequest request) {
+        
+        logger.info("Received VNPay return callback: {}", request.getQueryString());
+        
+        try {
+            Map<String, String> vnpParams = extractVnpParams(request);
+            PaymentResult result = paymentService.processReturnCallback(vnpParams);
+            String orderNumber = vnpParams.get("vnp_TxnRef");
+
+            if (result.isSuccess()) {
+                return "redirect:" + urlBuilder.buildSuccessUrl(orderNumber, result);
+            } else {
+                return "redirect:" + urlBuilder.buildErrorUrl(orderNumber, result);
+            }
+            
+        } catch (IllegalArgumentException e) {
+            // Invalid signature
+            return "redirect:" + urlBuilder.buildInvalidSignatureUrl();
+        } catch (Exception e) {
+            logger.error("Error processing payment callback: {}", e.getMessage(), e);
+            return "redirect:" + urlBuilder.buildErrorUrl(null, "Lỗi xử lý thanh toán");
+        }
+    }
+
+    /**
+     * Xử lý IPN (Instant Payment Notification) từ VNPay
+     */
+    @Operation(summary = "Xử lý IPN từ VNPay", description = "Xử lý thông báo thanh toán tức thì từ VNPay")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Xử lý IPN thành công")
+    })
+    @PostMapping("/vnpay-ipn")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> vnpayIPN(HttpServletRequest request) {
+        logger.info("Received VNPay IPN: {}", request.getQueryString());
+        
+        try {
+            Map<String, String> vnpParams = extractVnpParams(request);
+            PaymentService.IPNResponse ipnResponse = paymentService.processIPNCallback(vnpParams);
+            
+            Map<String, String> response = Map.of(
+                "RspCode", ipnResponse.getRspCode(),
+                "Message", ipnResponse.getMessage()
+            );
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            logger.error("Error processing VNPay IPN: {}", e.getMessage(), e);
+            Map<String, String> errorResponse = Map.of(
+                "RspCode", "99",
+                "Message", "Unknown error"
+            );
+            return ResponseEntity.ok(errorResponse);
+        }
+    }
+
+    /**
+     * Utility method để lấy username hiện tại
+     */
+    private String getCurrentUsername() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        return userDetails.getUsername();
+    }
+
+    /**
+     * Utility method để extract VNPay parameters từ request
+     */
+    private Map<String, String> extractVnpParams(HttpServletRequest request) {
         Map<String, String> vnpParams = new HashMap<>();
         Enumeration<String> paramNames = request.getParameterNames();
         
@@ -129,23 +172,6 @@ public class PaymentController {
             }
         }
         
-        // Xác thực chữ ký từ VNPay
-        if (!vnPayService.validateCallback(vnpParams)) {
-            return "redirect:" + frontendPaymentResultUrl + "?status=error&message=Invalid-signature";
-        }
-        
-        // Lấy mã đơn hàng
-        String orderNumber = vnpParams.get("vnp_TxnRef");
-        
-        // Kiểm tra trạng thái thanh toán
-        boolean paymentSuccess = vnPayService.isPaymentSuccess(vnpParams);
-        
-        if (paymentSuccess) {
-            // Cập nhật trạng thái đơn hàng
-            orderService.updateOrderStatus(null,orderNumber, Order.OrderStatus.PROCESSING);
-            return "redirect:" + frontendPaymentResultUrl + "?status=success&orderNumber=" + orderNumber;
-        } else {
-            return "redirect:" + frontendPaymentResultUrl + "?status=error&orderNumber=" + orderNumber;
-        }
+        return vnpParams;
     }
 }

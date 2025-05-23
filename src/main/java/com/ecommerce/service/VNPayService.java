@@ -1,5 +1,6 @@
 package com.ecommerce.service;
 
+import com.ecommerce.dto.PaymentResult;
 import com.ecommerce.model.Order;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,9 @@ public class VNPayService {
     @Value("${vnpay.returnUrl:http://localhost:8080/api/payment/vnpay-return}")
     private String vnpReturnUrl;
 
+    @Value("${vnpay.ipnUrl:http://localhost:8080/api/payment/vnpay-ipn}")
+    private String vnpIpnUrl;
+
     /**
      * Tạo URL thanh toán VNPay
      * @param order Đơn hàng cần thanh toán
@@ -57,6 +61,7 @@ public class VNPayService {
         vnpParams.put("vnp_OrderType", vnpOrderType);
         vnpParams.put("vnp_Locale", "vn");
         vnpParams.put("vnp_ReturnUrl", vnpReturnUrl);
+        // vnpParams.put("vnp_IpnUrl", vnpIpnUrl);
         vnpParams.put("vnp_IpAddr", ipAddress);
         
         Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
@@ -114,12 +119,15 @@ public class VNPayService {
             return false;
         }
         
+        // Tạo bản sao để không ảnh hưởng đến map gốc
+        Map<String, String> params = new HashMap<>(vnpParams);
+        
         // Xóa các tham số không cần thiết
-        vnpParams.remove("vnp_SecureHashType");
-        vnpParams.remove("vnp_SecureHash");
+        params.remove("vnp_SecureHashType");
+        params.remove("vnp_SecureHash");
         
         // Sắp xếp các tham số theo thứ tự
-        List<String> fieldNames = new ArrayList<>(vnpParams.keySet());
+        List<String> fieldNames = new ArrayList<>(params.keySet());
         Collections.sort(fieldNames);
         
         // Tạo chuỗi hash
@@ -127,7 +135,7 @@ public class VNPayService {
         Iterator<String> itr = fieldNames.iterator();
         while (itr.hasNext()) {
             String fieldName = itr.next();
-            String fieldValue = vnpParams.get(fieldName);
+            String fieldValue = params.get(fieldName);
             if ((fieldValue != null) && (!fieldValue.isEmpty())) {
                 hashData.append(fieldName);
                 hashData.append('=');
@@ -157,6 +165,82 @@ public class VNPayService {
     public boolean isPaymentSuccess(Map<String, String> vnpParams) {
         String vnpResponseCode = vnpParams.get("vnp_ResponseCode");
         return "00".equals(vnpResponseCode);
+    }
+    
+    /**
+     * Lấy thông tin chi tiết về trạng thái thanh toán
+     * @param vnpParams Các tham số từ VNPay gửi về
+     * @return Thông tin chi tiết về kết quả thanh toán
+     */
+    public PaymentResult getPaymentResult(Map<String, String> vnpParams) {
+        String vnpResponseCode = vnpParams.get("vnp_ResponseCode");
+        PaymentResult result = new PaymentResult();
+        result.setResponseCode(vnpResponseCode);
+        result.setTransactionId(vnpParams.get("vnp_TransactionNo"));
+        result.setOrderNumber(vnpParams.get("vnp_TxnRef"));
+        result.setBankCode(vnpParams.get("vnp_BankCode"));
+        result.setAmount(vnpParams.get("vnp_Amount"));
+        result.setPayDate(vnpParams.get("vnp_PayDate"));
+        
+        switch (vnpResponseCode) {
+            case "00":
+                result.setSuccess(true);
+                result.setMessage("Giao dịch thành công");
+                break;
+            case "07":
+                result.setSuccess(true);
+                result.setMessage("Trừ tiền thành công. Giao dịch bị nghi ngờ (liên quan tới lừa đảo, giao dịch bất thường)");
+                break;
+            case "09":
+                result.setSuccess(false);
+                result.setMessage("Thẻ/Tài khoản của khách hàng chưa đăng ký dịch vụ InternetBanking tại ngân hàng");
+                break;
+            case "10":
+                result.setSuccess(false);
+                result.setMessage("Khách hàng xác thực thông tin thẻ/tài khoản không đúng quá 3 lần");
+                break;
+            case "11":
+                result.setSuccess(false);
+                result.setMessage("Đã hết hạn chờ thanh toán. Xin quý khách vui lòng thực hiện lại giao dịch");
+                break;
+            case "12":
+                result.setSuccess(false);
+                result.setMessage("Thẻ/Tài khoản của khách hàng bị khóa");
+                break;
+            case "13":
+                result.setSuccess(false);
+                result.setMessage("Quý khách nhập sai mật khẩu xác thực giao dịch (OTP)");
+                break;
+            case "24":
+                result.setSuccess(false);
+                result.setMessage("Khách hàng hủy giao dịch");
+                break;
+            case "51":
+                result.setSuccess(false);
+                result.setMessage("Tài khoản của quý khách không đủ số dư để thực hiện giao dịch");
+                break;
+            case "65":
+                result.setSuccess(false);
+                result.setMessage("Tài khoản của Quý khách đã vượt quá hạn mức giao dịch trong ngày");
+                break;
+            case "75":
+                result.setSuccess(false);
+                result.setMessage("Ngân hàng thanh toán đang bảo trì");
+                break;
+            case "79":
+                result.setSuccess(false);
+                result.setMessage("KH nhập sai mật khẩu thanh toán quá số lần quy định");
+                break;
+            case "99":
+                result.setSuccess(false);
+                result.setMessage("Các lỗi khác");
+                break;
+            default:
+                result.setSuccess(false);
+                result.setMessage("Lỗi không xác định");
+        }
+        
+        return result;
     }
     
     /**
