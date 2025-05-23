@@ -1,7 +1,9 @@
 package com.ecommerce.service.impl;
 
+import com.ecommerce.exception.ResourceNotFoundException;
+import com.ecommerce.model.FileStorageProperties;
 import com.ecommerce.service.interfaces.FileStorageService;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -21,34 +24,34 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     private final Path fileStorageLocation;
 
-    public FileStorageServiceImpl(@Value("${file.upload-dir:uploads}") String uploadDir) {
-        this.fileStorageLocation = Paths.get(uploadDir)
+    @Autowired
+    public FileStorageServiceImpl(FileStorageProperties fileStorageProperties) {
+        this.fileStorageLocation = Paths.get(fileStorageProperties.getUploadDir())
                 .toAbsolutePath().normalize();
 
         try {
             Files.createDirectories(this.fileStorageLocation);
         } catch (Exception ex) {
-            throw new RuntimeException("Could not create the directory where the uploaded files will be stored.", ex);
+            throw new FileStorageException("Could not create the directory where the uploaded files will be stored.", ex);
         }
     }
 
     public String storeFile(MultipartFile file) {
         // Normalize file name
-        String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
-        String fileName = "";
+        String originalFileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
 
         try {
             // Check if the file's name contains invalid characters
             if (originalFileName.contains("..")) {
-                throw new RuntimeException("Sorry! Filename contains invalid path sequence " + originalFileName);
+                throw new FileStorageException("Sorry! Filename contains invalid path sequence " + originalFileName);
             }
 
-            // Generate a unique file name
+            // Generate unique filename
             String fileExtension = "";
             if (originalFileName.contains(".")) {
                 fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
             }
-            fileName = UUID.randomUUID().toString() + fileExtension;
+            String fileName = UUID.randomUUID().toString() + fileExtension;
 
             // Copy file to the target location (Replacing existing file with the same name)
             Path targetLocation = this.fileStorageLocation.resolve(fileName);
@@ -56,7 +59,7 @@ public class FileStorageServiceImpl implements FileStorageService {
 
             return fileName;
         } catch (IOException ex) {
-            throw new RuntimeException("Could not store file " + fileName + ". Please try again!", ex);
+            throw new FileStorageException("Could not store file " + originalFileName + ". Please try again!", ex);
         }
     }
 
@@ -67,10 +70,21 @@ public class FileStorageServiceImpl implements FileStorageService {
             if (resource.exists()) {
                 return resource;
             } else {
-                throw new RuntimeException("File not found " + fileName);
+                throw new ResourceNotFoundException("File not found " + fileName);
             }
         } catch (MalformedURLException ex) {
-            throw new RuntimeException("File not found " + fileName, ex);
+            throw new ResourceNotFoundException("File not found " + fileName);
+        }
+    }
+    
+    // Custom exception for file storage operations
+    public static class FileStorageException extends RuntimeException {
+        public FileStorageException(String message) {
+            super(message);
+        }
+
+        public FileStorageException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 } 

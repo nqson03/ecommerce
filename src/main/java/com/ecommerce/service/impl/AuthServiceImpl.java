@@ -3,6 +3,8 @@ package com.ecommerce.service.impl;
 import com.ecommerce.dto.JwtResponse;
 import com.ecommerce.dto.LoginRequest;
 import com.ecommerce.dto.SignupRequest;
+import com.ecommerce.exception.EmailAlreadyExistsException;
+import com.ecommerce.exception.UsernameAlreadyExistsException;
 import com.ecommerce.model.User;
 import com.ecommerce.repository.UserRepository;
 import com.ecommerce.security.JwtTokenProvider;
@@ -46,11 +48,11 @@ public class AuthServiceImpl implements AuthService {
 
     public void registerUser(SignupRequest signUpRequest) {
         if (userRepository.existsByUsername(signUpRequest.getUsername())) {
-            throw new RuntimeException("Username is already taken!");
+            throw new UsernameAlreadyExistsException("Username is already taken!");
         }
 
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-            throw new RuntimeException("Email is already in use!");
+            throw new EmailAlreadyExistsException("Email is already in use!");
         }
 
         // Create new user's account

@@ -1,6 +1,8 @@
 package com.ecommerce.service.impl;
 
 import com.ecommerce.dto.PaymentResult;
+import com.ecommerce.exception.PaymentException;
+import com.ecommerce.exception.UnauthorizedOperationException;
 import com.ecommerce.model.Order;
 import com.ecommerce.service.interfaces.OrderService;
 import com.ecommerce.service.interfaces.PaymentService;
@@ -38,7 +40,7 @@ public class PaymentServiceImpl implements PaymentService {
         // Validate signature
         if (!vnPayService.validateCallback(vnpParams)) {
             logger.error("Invalid signature from VNPay");
-            throw new IllegalArgumentException("Invalid signature");
+            throw new PaymentException("Invalid signature");
         }
 
         String orderNumber = vnpParams.get("vnp_TxnRef");
@@ -114,7 +116,7 @@ public class PaymentServiceImpl implements PaymentService {
         if (!order.getUser().getUsername().equals(username)) {
             logger.warn("User {} attempted to pay for order {} owned by {}", 
                 username, orderId, order.getUser().getUsername());
-            throw new SecurityException("You are not authorized to make payment for this order");
+            throw new UnauthorizedOperationException("You are not authorized to make payment for this order");
         }
 
         // Check payment method and status
@@ -122,7 +124,7 @@ public class PaymentServiceImpl implements PaymentService {
             order.getStatus() != Order.OrderStatus.PENDING) {
             logger.warn("Invalid payment attempt for order {}: method={}, status={}", 
                 orderId, order.getPaymentMethod(), order.getStatus());
-            throw new IllegalStateException("Invalid order or payment has already been made");
+            throw new PaymentException("Invalid order or payment has already been made");
         }
 
         return order;

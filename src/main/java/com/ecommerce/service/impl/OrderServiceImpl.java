@@ -2,7 +2,10 @@ package com.ecommerce.service.impl;
 
 import com.ecommerce.config.CacheConfig;
 import com.ecommerce.dto.OrderRequest;
+import com.ecommerce.exception.EmptyCartException;
+import com.ecommerce.exception.InvalidOrderStatusException;
 import com.ecommerce.exception.ResourceNotFoundException;
+import com.ecommerce.exception.UnauthorizedOperationException;
 import com.ecommerce.dto.OrderDto;
 import com.ecommerce.mapper.OrderMapper;
 import com.ecommerce.model.Cart;
@@ -56,7 +59,7 @@ public class OrderServiceImpl implements OrderService {
         // Check if the order belongs to the current user or if user is admin
         if (!order.getUser().getId().equals(currentUser.getId()) && 
                 !currentUser.getRole().equals(User.Role.ROLE_ADMIN)) {
-            throw new RuntimeException("You don't have permission to view this order");
+            throw new UnauthorizedOperationException("You don't have permission to view this order");
         }
         
         OrderDto orderDto = orderMapper.toDto(order);
@@ -81,7 +84,7 @@ public class OrderServiceImpl implements OrderService {
         Cart cart = cartService.getOrCreateCart(currentUser); 
         
         if (cart.getItems().isEmpty()) {
-            throw new RuntimeException("Cannot create order with empty cart");
+            throw new EmptyCartException("Cannot create order with empty cart");
         }
         
         // Check stock availability before creating order
@@ -146,13 +149,13 @@ public class OrderServiceImpl implements OrderService {
         // Check if the order belongs to the current user or if user is admin
         if (!order.getUser().getId().equals(currentUser.getId()) && 
                 !currentUser.getRole().equals(User.Role.ROLE_ADMIN)) {
-            throw new RuntimeException("You don't have permission to cancel this order");
+            throw new UnauthorizedOperationException("You don't have permission to cancel this order");
         }
         
         // Check if the order can be cancelled
         if (order.getStatus() != Order.OrderStatus.PENDING && 
                 order.getStatus() != Order.OrderStatus.PROCESSING) {
-            throw new RuntimeException("Cannot cancel order with status: " + order.getStatus());
+            throw new InvalidOrderStatusException("Cannot cancel order with status: " + order.getStatus());
         }
         
         order.setStatus(Order.OrderStatus.CANCELLED);

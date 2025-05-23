@@ -4,6 +4,7 @@ import com.ecommerce.config.CacheConfig;
 import com.ecommerce.dto.ProductRequest;
 import com.ecommerce.dto.ProductResponse;
 import com.ecommerce.exception.ResourceNotFoundException;
+import com.ecommerce.exception.UnauthorizedOperationException;
 import com.ecommerce.mapper.ProductMapper;
 import com.ecommerce.model.Category;
 import com.ecommerce.model.Product;
@@ -125,7 +126,7 @@ public class ProductServiceImpl implements ProductService {
         // Check if the current user is the seller of the product
         if (!product.getSeller().getId().equals(currentUser.getId()) && 
                 !currentUser.getRole().equals(User.Role.ROLE_ADMIN)) {
-            throw new RuntimeException("You don't have permission to delete this product");
+            throw new UnauthorizedOperationException("You don't have permission to delete this product");
         }
         
         productRepository.delete(product);

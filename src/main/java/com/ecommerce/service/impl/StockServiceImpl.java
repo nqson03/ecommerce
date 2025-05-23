@@ -1,6 +1,7 @@
 package com.ecommerce.service.impl;
 
 import java.util.List;
+import com.ecommerce.exception.InsufficientStockException;
 import com.ecommerce.model.CartItem;
 import com.ecommerce.model.OrderItem;
 import com.ecommerce.model.Product;
@@ -23,7 +24,7 @@ public class StockServiceImpl implements StockService {
             Integer requestedQuantity = cartItem.getQuantity();
             
             if (product.getStock() < requestedQuantity) {
-                throw new RuntimeException("Insufficient quantity of product " + product.getName() +
+                throw new InsufficientStockException("Insufficient quantity of product " + product.getName() +
                     " in stock. Only " + product.getStock() + " items remaining.");
             }
         }
