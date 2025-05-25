@@ -7,7 +7,10 @@ import java.util.List;
 
 public interface StockService {
     
-    void checkStockAvailability(List<CartItem> cartItems);
+    /**
+     * Kiểm tra stock khả dụng (tính cả reservation) cho cart items
+     */
+    void checkAvailableStockForCart(List<CartItem> cartItems);
     
     void updateProductStock(List<OrderItem> orderItems);
     

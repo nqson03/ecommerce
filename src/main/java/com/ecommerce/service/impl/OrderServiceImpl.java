@@ -16,6 +16,7 @@ import com.ecommerce.repository.OrderRepository;
 import com.ecommerce.service.interfaces.CartService;
 import com.ecommerce.service.interfaces.OrderService;
 import com.ecommerce.service.interfaces.StockService;
+import com.ecommerce.service.interfaces.StockReservationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -41,6 +42,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private StockService stockService;
+    
+    @Autowired
+    private StockReservationService stockReservationService;
 
     @Autowired
     private OrderMapper orderMapper;
@@ -87,8 +91,8 @@ public class OrderServiceImpl implements OrderService {
             throw new EmptyCartException("Cannot create order with empty cart");
         }
         
-        // Check stock availability before creating order
-        stockService.checkStockAvailability(cart.getItems());
+        // Kiểm tra stock khả dụng (tính cả reservation) cho tất cả phương thức thanh toán
+        stockService.checkAvailableStockForCart(cart.getItems());
         
         Order order = new Order();
         order.setUser(currentUser);
@@ -97,7 +101,6 @@ public class OrderServiceImpl implements OrderService {
         order.setPaymentMethod(orderRequest.getPaymentMethod());
         
         // Nếu phương thức thanh toán là VNPay, đặt trạng thái là PENDING
-        // và không cập nhật stock cho đến khi thanh toán thành công
         if ("VNPAY".equals(orderRequest.getPaymentMethod())) {
             order.setStatus(Order.OrderStatus.PENDING);
         } else {
@@ -125,8 +128,11 @@ public class OrderServiceImpl implements OrderService {
         // Save the order first to generate ID
         Order savedOrder = orderRepository.save(order);
         
-        // Chỉ cập nhật stock nếu không phải thanh toán VNPay
-        if (!"VNPAY".equals(orderRequest.getPaymentMethod())) {
+        if ("VNPAY".equals(orderRequest.getPaymentMethod())) {
+            // Tạo reservation cho VNPAY
+            stockReservationService.createReservations(savedOrder);
+        } else {
+            // Cập nhật stock ngay lập tức cho các phương thức thanh toán khác
             stockService.updateProductStock(savedOrder.getItems());
         }
         
@@ -160,8 +166,13 @@ public class OrderServiceImpl implements OrderService {
         
         order.setStatus(Order.OrderStatus.CANCELLED);
         
-        // Restore product stock when order is cancelled
-        stockService.restoreProductStock(order.getItems());
+        if ("VNPAY".equals(order.getPaymentMethod()) && order.getStatus() == Order.OrderStatus.PENDING) {
+            // Hủy reservation cho VNPAY order đang pending
+            stockReservationService.cancelReservations(order.getId());
+        } else {
+            // Restore product stock cho các order đã confirmed
+            stockService.restoreProductStock(order.getItems());
+        }
         
         return orderMapper.toDto(orderRepository.save(order));
     }
@@ -192,12 +203,15 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalArgumentException("Either order id or order number must be provided");
         }
 
-        // Nếu đơn hàng đang ở trạng thái PENDING và chuyển sang PROCESSING
-        // và phương thức thanh toán là VNPAY, cập nhật stock
-        if (order.getStatus() == Order.OrderStatus.PENDING && 
-            status == Order.OrderStatus.PROCESSING && 
-            "VNPAY".equals(order.getPaymentMethod())) {
-            stockService.updateProductStock(order.getItems());
+        // Xử lý chuyển đổi trạng thái cho VNPAY
+        if ("VNPAY".equals(order.getPaymentMethod())) {
+            if (order.getStatus() == Order.OrderStatus.PENDING && status == Order.OrderStatus.PROCESSING) {
+                // Thanh toán thành công - confirm reservations
+                stockReservationService.confirmReservations(order.getId());
+            } else if (order.getStatus() == Order.OrderStatus.PENDING && status == Order.OrderStatus.CANCELLED) {
+                // Thanh toán thất bại - cancel reservations
+                stockReservationService.cancelReservations(order.getId());
+            }
         }
 
         order.setStatus(status);

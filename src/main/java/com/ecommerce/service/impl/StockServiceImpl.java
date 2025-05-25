@@ -7,6 +7,7 @@ import com.ecommerce.model.OrderItem;
 import com.ecommerce.model.Product;
 import com.ecommerce.repository.ProductRepository;
 import com.ecommerce.service.interfaces.StockService;
+import com.ecommerce.service.interfaces.StockReservationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import com.ecommerce.config.CacheConfig;
@@ -17,15 +18,20 @@ public class StockServiceImpl implements StockService {
     
     @Autowired
     private ProductRepository productRepository;
-
-    public void checkStockAvailability(List<CartItem> cartItems) {
+    
+    @Autowired
+    private StockReservationService stockReservationService;
+    
+    @Override
+    public void checkAvailableStockForCart(List<CartItem> cartItems) {
         for (var cartItem : cartItems) {
             Product product = cartItem.getProduct();
             Integer requestedQuantity = cartItem.getQuantity();
+            Integer availableStock = stockReservationService.getAvailableStock(product.getId());
             
-            if (product.getStock() < requestedQuantity) {
-                throw new InsufficientStockException("Insufficient quantity of product " + product.getName() +
-                    " in stock. Only " + product.getStock() + " items remaining.");
+            if (availableStock < requestedQuantity) {
+                throw new InsufficientStockException("Insufficient available quantity of product " + product.getName() +
+                    ". Only " + availableStock + " items available (considering reservations).");
             }
         }
     }
