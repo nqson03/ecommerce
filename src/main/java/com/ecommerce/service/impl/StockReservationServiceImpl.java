@@ -8,7 +8,10 @@ import com.ecommerce.model.StockReservation;
 import com.ecommerce.repository.ProductRepository;
 import com.ecommerce.repository.StockReservationRepository;
 import com.ecommerce.service.interfaces.StockReservationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,11 +22,16 @@ import java.util.List;
 @Service
 public class StockReservationServiceImpl implements StockReservationService {
     
+    private static final Logger logger = LoggerFactory.getLogger(StockReservationServiceImpl.class);
+    
     @Autowired
     private StockReservationRepository stockReservationRepository;
     
     @Autowired
     private ProductRepository productRepository;
+    
+    @Value("${app.stock-reservation.cleanup.batch-size:1000}")
+    private int batchSize;
     
     @Override
     @Transactional
@@ -114,5 +122,62 @@ public class StockReservationServiceImpl implements StockReservationService {
             }
         }
         return true;
+    }
+    
+    @Override
+    @Transactional
+    public void deleteOldReservations(LocalDateTime cutoffDate) {
+        Long totalCount = stockReservationRepository.countOldReservations(cutoffDate);
+        logger.info("Found {} old stock reservations to delete before {} (batch size: {})", 
+                   totalCount, cutoffDate, batchSize);
+        
+        if (totalCount == 0) {
+            logger.info("No old stock reservations found to delete");
+            return;
+        }
+        
+        int totalDeleted = 0;
+        int batchCount = 0;
+        long startTime = System.currentTimeMillis();
+        
+        // Xử lý theo batch để tránh lock database quá lâu
+        while (totalDeleted < totalCount) {
+            batchCount++;
+            logger.debug("Processing batch {} (size: {})", batchCount, batchSize);
+            
+            try {
+                int deletedInBatch = stockReservationRepository.deleteOldReservationsBatch(cutoffDate, batchSize);
+                totalDeleted += deletedInBatch;
+                
+                logger.info("Batch {}: Deleted {} records. Total deleted: {}/{}", 
+                           batchCount, deletedInBatch, totalDeleted, totalCount);
+                
+                if (deletedInBatch == 0) {
+                    logger.info("No more records to delete, stopping batch processing");
+                    break;
+                }
+                
+                // Nghỉ ngắn giữa các batch để giảm load database
+                if (deletedInBatch == batchSize && totalDeleted < totalCount) {
+                    try {
+                        Thread.sleep(100); // 100ms pause between batches
+                    } catch (InterruptedException e) {
+                        logger.warn("Batch processing interrupted");
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+                
+            } catch (Exception e) {
+                logger.error("Error in batch {} during deletion", batchCount, e);
+                throw e; // Re-throw để rollback transaction
+            }
+        }
+        
+        long endTime = System.currentTimeMillis();
+        long duration = endTime - startTime;
+        
+        logger.info("Completed deletion: {}/{} records deleted in {} batches (took {}ms)", 
+                   totalDeleted, totalCount, batchCount, duration);
     }
 } 

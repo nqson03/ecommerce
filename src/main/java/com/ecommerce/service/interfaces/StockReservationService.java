@@ -4,6 +4,7 @@ import com.ecommerce.model.Order;
 import com.ecommerce.model.OrderItem;
 import com.ecommerce.model.StockReservation;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface StockReservationService {
@@ -37,4 +38,9 @@ public interface StockReservationService {
      * Kiểm tra xem có đủ stock khả dụng cho order không
      */
     boolean checkAvailableStockForOrder(List<OrderItem> orderItems);
+    
+    /**
+     * Xóa các reservation cũ đã hoàn thành (CONFIRMED, CANCELLED, EXPIRED)
+     */
+    void deleteOldReservations(LocalDateTime cutoffDate);
 } 
