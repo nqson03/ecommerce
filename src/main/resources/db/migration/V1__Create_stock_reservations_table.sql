@@ -14,6 +14,7 @@ CREATE TABLE stock_reservations (
     
     INDEX idx_product_status (product_id, status),
     INDEX idx_order_id (order_id),
+    INDEX idx_product_id (product_id),
     INDEX idx_status_expires_at (status, expires_at),
     INDEX idx_order_status (order_id, status)
 ); 
