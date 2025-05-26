@@ -114,6 +114,12 @@ public class StockReservationServiceImpl implements StockReservationService {
     }
     
     @Override
+    public Integer getTotalReservedQuantityForProduct(Long productId) {
+        Integer reservedQuantity = stockReservationRepository.getTotalReservedQuantityForProduct(productId);
+        return reservedQuantity != null ? reservedQuantity : 0;
+    }
+    
+    @Override
     public boolean checkAvailableStockForOrder(List<OrderItem> orderItems) {
         for (OrderItem orderItem : orderItems) {
             Integer availableStock = getAvailableStock(orderItem.getProduct().getId());

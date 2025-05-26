@@ -35,6 +35,11 @@ public interface StockReservationService {
     Integer getAvailableStock(Long productId);
     
     /**
+     * Lấy tổng số lượng đang được reserved cho product
+     */
+    Integer getTotalReservedQuantityForProduct(Long productId);
+    
+    /**
      * Kiểm tra xem có đủ stock khả dụng cho order không
      */
     boolean checkAvailableStockForOrder(List<OrderItem> orderItems);
