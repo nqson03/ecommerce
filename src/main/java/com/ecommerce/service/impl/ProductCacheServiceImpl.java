@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -71,5 +72,11 @@ public class ProductCacheServiceImpl implements ProductCacheService {
     })
     public void evictAllProductCaches() {
         // Cache eviction handled by annotation
+    }
+
+    @Override
+    @CachePut(value = CacheConfig.PRODUCT_CACHE, key = "#product.id")
+    public ProductResponse updateCachedProduct(Product product) {
+        return productMapper.toDtoForCache(product);
     }
 } 

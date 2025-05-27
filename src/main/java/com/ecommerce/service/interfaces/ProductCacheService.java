@@ -1,6 +1,7 @@
 package com.ecommerce.service.interfaces;
 
 import com.ecommerce.dto.ProductResponse;
+import com.ecommerce.model.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -50,4 +51,12 @@ public interface ProductCacheService {
      * Evict all product-related caches
      */
     void evictAllProductCaches();
+
+    /**
+     * Updates the cached ProductResponse for a given Product entity.
+     * This method is typically annotated with @CachePut.
+     * @param product The Product entity with updated information.
+     * @return The ProductResponse that was put into the cache.
+     */
+    ProductResponse updateCachedProduct(Product product);
 } 

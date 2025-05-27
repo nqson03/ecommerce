@@ -8,6 +8,7 @@ import com.ecommerce.model.StockReservation;
 import com.ecommerce.repository.ProductRepository;
 import com.ecommerce.repository.StockReservationRepository;
 import com.ecommerce.service.interfaces.StockReservationService;
+import com.ecommerce.service.interfaces.ProductCacheService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,9 @@ public class StockReservationServiceImpl implements StockReservationService {
     
     @Autowired
     private ProductRepository productRepository;
+    
+    @Autowired
+    private ProductCacheService productCacheService;
     
     @Value("${app.stock-reservation.cleanup.batch-size:1000}")
     private int batchSize;
@@ -71,8 +75,12 @@ public class StockReservationServiceImpl implements StockReservationService {
             // Cập nhật stock thực tế của product
             Product product = reservation.getProduct();
             product.setStock(product.getStock() - reservation.getQuantity());
-            productRepository.save(product);
+            Product savedProduct = productRepository.save(product);
+            
+            productCacheService.updateCachedProduct(savedProduct);
         }
+        
+        productCacheService.evictAllProductCaches();
     }
     
     @Override

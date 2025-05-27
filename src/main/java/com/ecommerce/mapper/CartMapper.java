@@ -51,14 +51,14 @@ public class CartMapper {
         if (cartItem.getProduct() != null) {
             dto.setProductId(cartItem.getProduct().getId());
             dto.setProductName(cartItem.getProduct().getName());
+            dto.setPrice(cartItem.getProduct().getPrice());
             if (cartItem.getProduct().getImages() != null && !cartItem.getProduct().getImages().isEmpty()) {
                 dto.setProductImage(cartItem.getProduct().getImages().get(0));
             }
         }
         
-        // Tính tổng giá
-        if (cartItem.getPrice() != null && cartItem.getQuantity() != null) {
-            dto.setTotalPrice(cartItem.getPrice().multiply(new BigDecimal(cartItem.getQuantity())));
+        if (dto.getPrice() != null && cartItem.getQuantity() != null) {
+            dto.setTotalPrice(dto.getPrice().multiply(new BigDecimal(cartItem.getQuantity())));
         }
         
         return dto;

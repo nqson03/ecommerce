@@ -44,10 +44,10 @@ public class StockServiceImpl implements StockService {
             Integer orderedQuantity = orderItem.getQuantity();
             
             product.setStock(product.getStock() - orderedQuantity);
-            productRepository.save(product);
+            Product savedProduct = productRepository.save(product);
             
-            // Evict cache using external service call
-            productCacheService.evictProductCache(product.getId());
+            // Update cache using external service call with @CachePut
+            productCacheService.updateCachedProduct(savedProduct); 
         }
         // Evict all product lists vì actual stock đã thay đổi
         productCacheService.evictAllProductCaches();
@@ -59,10 +59,10 @@ public class StockServiceImpl implements StockService {
             Integer orderedQuantity = orderItem.getQuantity();
             
             product.setStock(product.getStock() + orderedQuantity);
-            productRepository.save(product);
+            Product savedProduct = productRepository.save(product);
             
-            // Evict cache using external service call
-            productCacheService.evictProductCache(product.getId());
+            // Update cache using external service call with @CachePut
+            productCacheService.updateCachedProduct(savedProduct);
         }
         // Evict all product lists vì actual stock đã thay đổi
         productCacheService.evictAllProductCaches();

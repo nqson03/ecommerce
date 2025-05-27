@@ -68,7 +68,7 @@ public class CacheConfig {
     public static final long CATEGORY_PRODUCTS_CACHE_TTL = 3600; // 1 giờ
     public static final long SEARCH_PRODUCTS_CACHE_TTL = 1800; // 30 phút
     public static final long REVIEWS_CACHE_TTL = 1800; // 30 phút
-    public static final long CART_CACHE_TTL = 600; // 10 phút
+    public static final long CART_CACHE_TTL = 3600; // 1 giờ
     public static final long JWT_BLACKLIST_CACHE_TTL = 86400; // 24 giờ
     public static final long CATEGORIES_CACHE_TTL = 7200; // 2 giờ
     public static final long CATEGORY_CACHE_TTL = 3600; // 1 giờ

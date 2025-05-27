@@ -16,11 +16,11 @@ import com.ecommerce.repository.OrderRepository;
 import com.ecommerce.service.interfaces.CartService;
 import com.ecommerce.service.interfaces.EmailService;
 import com.ecommerce.service.interfaces.OrderService;
-import com.ecommerce.service.interfaces.ProductCacheService;
 import com.ecommerce.service.interfaces.StockService;
 import com.ecommerce.service.interfaces.StockReservationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
@@ -54,9 +54,6 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private OrderMapper orderMapper;
     
-    @Autowired
-    private ProductCacheService productCacheService;
-    
     @Cacheable(value = CacheConfig.USER_ORDERS_CACHE, key = "#userId + '_' + #pageable.toString()")
     public Page<OrderDto> getUserOrders(Long userId, Pageable pageable) {
         Page<Order> orders= orderRepository.findByUserId(userId, pageable);
@@ -88,10 +85,15 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = CacheConfig.USER_ORDERS_CACHE, allEntries = true),
-        @CacheEvict(value = CacheConfig.ORDERS_CACHE, allEntries = true)
-    })
+    @Caching(
+        put = {
+            @CachePut(value = CacheConfig.ORDER_CACHE, key = "#result.id", condition = "#result != null && #result.id != null")
+        },
+        evict = {
+            @CacheEvict(value = CacheConfig.USER_ORDERS_CACHE, allEntries = true),
+            @CacheEvict(value = CacheConfig.ORDERS_CACHE, allEntries = true)
+        }
+    )
     public OrderDto createOrder(OrderRequest orderRequest, User currentUser) {
         Cart cart = cartService.getOrCreateCart(currentUser); 
         
@@ -123,17 +125,14 @@ public class OrderServiceImpl implements OrderService {
             orderItem.setOrder(order);
             orderItem.setProduct(cartItem.getProduct());
             orderItem.setQuantity(cartItem.getQuantity());
-            orderItem.setPrice(cartItem.getPrice());
+            BigDecimal currentProductPrice = cartItem.getProduct().getPrice();
+            orderItem.setPrice(currentProductPrice); 
             
             order.getItems().add(orderItem);
-            
-            // Calculate total amount
-            totalAmount = totalAmount.add(cartItem.getPrice().multiply(new BigDecimal(cartItem.getQuantity())));
+            totalAmount = totalAmount.add(currentProductPrice.multiply(new BigDecimal(cartItem.getQuantity())));
         }
         
         order.setTotalAmount(totalAmount);
-        
-        // Save the order first to generate ID
         Order savedOrder = orderRepository.save(order);
         
         if ("VNPAY".equals(orderRequest.getPaymentMethod())) {
@@ -159,11 +158,15 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = CacheConfig.ORDER_CACHE, key = "#id"),
-        @CacheEvict(value = CacheConfig.USER_ORDERS_CACHE, allEntries = true),
-        @CacheEvict(value = CacheConfig.ORDERS_CACHE, allEntries = true)
-    })
+    @Caching(
+        put = {
+            @CachePut(value = CacheConfig.ORDER_CACHE, key = "#result.id", condition = "#result != null && #result.id != null")
+        },
+        evict = {
+            @CacheEvict(value = CacheConfig.USER_ORDERS_CACHE, allEntries = true),
+            @CacheEvict(value = CacheConfig.ORDERS_CACHE, allEntries = true)
+        }
+    )
     public OrderDto cancelOrder(Long id, User currentUser) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
@@ -180,13 +183,13 @@ public class OrderServiceImpl implements OrderService {
             throw new InvalidOrderStatusException("Cannot cancel order with status: " + order.getStatus());
         }
         
+        Order.OrderStatus originalStatus = order.getStatus();
         order.setStatus(Order.OrderStatus.CANCELLED);
         
-        if ("VNPAY".equals(order.getPaymentMethod()) && order.getStatus() == Order.OrderStatus.PENDING) {
-            // Hủy reservation cho VNPAY order đang pending
+        if ("VNPAY".equals(order.getPaymentMethod()) && originalStatus == Order.OrderStatus.PENDING) {
             stockReservationService.cancelReservations(order.getId());
-        } else {
-            // Restore product stock cho các order đã confirmed
+        } else if (originalStatus == Order.OrderStatus.PROCESSING || 
+                  (originalStatus == Order.OrderStatus.PENDING && !"VNPAY".equals(order.getPaymentMethod()))) {
             stockService.restoreProductStock(order.getItems());
         }
         
@@ -209,11 +212,15 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = CacheConfig.ORDER_CACHE, key = "#id", condition = "#id != null"),
-        @CacheEvict(value = CacheConfig.USER_ORDERS_CACHE, allEntries = true),
-        @CacheEvict(value = CacheConfig.ORDERS_CACHE, allEntries = true)
-    })
+    @Caching(
+        put = {
+            @CachePut(value = CacheConfig.ORDER_CACHE, key = "#result.id", condition = "#result != null && #result.id != null")
+        },
+        evict = {
+            @CacheEvict(value = CacheConfig.USER_ORDERS_CACHE, allEntries = true),
+            @CacheEvict(value = CacheConfig.ORDERS_CACHE, allEntries = true)
+        }
+    )
     public OrderDto updateOrderStatus(Long id, String orderNumber, Order.OrderStatus status) { 
         Order order;
     
@@ -228,17 +235,12 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalArgumentException("Either order id or order number must be provided");
         }
 
-        // Xử lý chuyển đổi trạng thái cho VNPAY
+        Order.OrderStatus originalStatus = order.getStatus();
+
         if ("VNPAY".equals(order.getPaymentMethod())) {
-            if (order.getStatus() == Order.OrderStatus.PENDING && status == Order.OrderStatus.PROCESSING) {
-                // Thanh toán thành công - confirm reservations
+            if (originalStatus == Order.OrderStatus.PENDING && status == Order.OrderStatus.PROCESSING) {
                 stockReservationService.confirmReservations(order.getId());
-                
-                // Evict product caches vì actual stock đã thay đổi
-                evictProductCachesForOrder(order);
-                
-            } else if (order.getStatus() == Order.OrderStatus.PENDING && status == Order.OrderStatus.CANCELLED) {
-                // Thanh toán thất bại - cancel reservations
+            } else if (originalStatus == Order.OrderStatus.PENDING && status == Order.OrderStatus.CANCELLED) {
                 stockReservationService.cancelReservations(order.getId());
             }
         }
@@ -259,20 +261,6 @@ public class OrderServiceImpl implements OrderService {
         }
         
         return orderMapper.toDto(savedOrder);
-    }
-    
-    /**
-     * Helper method để evict product caches khi stock thay đổi
-     * Chỉ gọi khi actual stock thay đổi (confirmReservations)
-     */
-    private void evictProductCachesForOrder(Order order) {
-        for (OrderItem item : order.getItems()) {
-            // Evict single product cache
-            productCacheService.evictProductCache(item.getProduct().getId());
-        }
-        
-        // Evict all product lists vì actual stock đã thay đổi
-        productCacheService.evictAllProductCaches();
     }
 
     private String generateOrderNumber() {

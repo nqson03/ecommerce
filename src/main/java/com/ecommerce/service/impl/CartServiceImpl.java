@@ -13,7 +13,7 @@ import com.ecommerce.repository.CartRepository;
 import com.ecommerce.repository.ProductRepository;
 import com.ecommerce.service.interfaces.CartService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,7 +50,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Transactional
-    @CacheEvict(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
+    @CachePut(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
     public CartDto addItemToCart(User currentUser, CartItemRequest request) { 
         Cart cart = getOrCreateCart(currentUser);
         
@@ -66,14 +66,12 @@ public class CartServiceImpl implements CartService {
             // Update quantity if product already exists in cart
             CartItem item = existingItem.get();
             item.setQuantity(item.getQuantity() + request.getQuantity());
-            item.setPrice(product.getPrice()); // Ensure price is updated if it changes
         } else {
             // Add new item to cart
             CartItem newItem = new CartItem();
             newItem.setCart(cart);
             newItem.setProduct(product);
             newItem.setQuantity(request.getQuantity());
-            newItem.setPrice(product.getPrice());
             cart.getItems().add(newItem);
         }
         
@@ -82,7 +80,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Transactional
-    @CacheEvict(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
+    @CachePut(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
     public CartDto updateCartItem(User currentUser, Long itemId, CartItemRequest request) { 
         Cart cart = getOrCreateCart(currentUser);
         
@@ -97,10 +95,6 @@ public class CartServiceImpl implements CartService {
              Product product = productRepository.findById(request.getProductId())
                  .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + request.getProductId()));
              item.setProduct(product);
-             item.setPrice(product.getPrice()); // Update price when product changes
-        } else {
-            // If product is the same, just update quantity (price might have changed)
-            item.setPrice(item.getProduct().getPrice());
         }
 
         item.setQuantity(request.getQuantity());
@@ -110,7 +104,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Transactional
-    @CacheEvict(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
+    @CachePut(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
     public CartDto removeItemFromCart(User currentUser, Long itemId) { 
         Cart cart = getOrCreateCart(currentUser);
 
@@ -126,7 +120,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Transactional
-    @CacheEvict(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
+    @CachePut(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
     public CartDto clearCart(User currentUser) { 
         Cart cart = getOrCreateCart(currentUser);
         

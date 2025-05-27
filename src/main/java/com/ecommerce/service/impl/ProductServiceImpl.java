@@ -16,7 +16,6 @@ import com.ecommerce.service.interfaces.ProductService;
 import com.ecommerce.service.interfaces.StockReservationService;
 import com.ecommerce.service.interfaces.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -52,49 +51,43 @@ public class ProductServiceImpl implements ProductService {
     @Autowired
     private ProductCacheService productCacheService;
 
-    // =============== BUSINESS LOGIC WITH REAL-TIME STOCK ===============
+    // Helper method to populate stock information
+    private void populateStockInformation(ProductResponse productResponse) {
+        if (productResponse == null || productResponse.getId() == null) return;
+        Integer reservedStock = stockReservationService.getTotalReservedQuantityForProduct(productResponse.getId());
+        // productResponse.getStock() should contain the actual physical stock from the database (set by toDtoForCache)
+        Integer availableStock = productResponse.getStock() - reservedStock;
+        
+        productResponse.setReservedStock(reservedStock);
+        productResponse.setAvailableStock(availableStock);
+    }
 
     @Override
     public Page<ProductResponse> getAllProducts(Pageable pageable) {
-        Page<ProductResponse> staticProducts = productCacheService.getStaticProducts(pageable);
-        
-        // Populate real-time stock info cho từng product
-        staticProducts.getContent().forEach(response -> 
-            productMapper.populateStockInfo(response, response.getId())
-        );
-        
-        return staticProducts;
+        Page<ProductResponse> staticProductsPage = productCacheService.getStaticProducts(pageable);
+        staticProductsPage.getContent().forEach(this::populateStockInformation);
+        return staticProductsPage;
     }
 
     @Override
     public ProductResponse getProductById(Long id) {
         ProductResponse response = productCacheService.getStaticProduct(id);
-        productMapper.populateStockInfo(response, id);         // luôn realtime
+        populateStockInformation(response);
         return response;
     }
 
     @Override
     public Page<ProductResponse> getProductsByCategory(Long categoryId, Pageable pageable) {
-        Page<ProductResponse> staticProducts = productCacheService.getStaticProductsByCategory(categoryId, pageable);
-        
-        // Populate real-time stock info cho từng product
-        staticProducts.getContent().forEach(response -> 
-            productMapper.populateStockInfo(response, response.getId())
-        );
-        
-        return staticProducts;
+        Page<ProductResponse> staticProductsPage = productCacheService.getStaticProductsByCategory(categoryId, pageable);
+        staticProductsPage.getContent().forEach(this::populateStockInformation);
+        return staticProductsPage;
     }
 
     @Override
     public Page<ProductResponse> searchProducts(String keyword, Pageable pageable) {
-        Page<ProductResponse> staticProducts = productCacheService.getStaticSearchProducts(keyword, pageable);
-        
-        // Populate real-time stock info cho từng product
-        staticProducts.getContent().forEach(response -> 
-            productMapper.populateStockInfo(response, response.getId())
-        );
-        
-        return staticProducts;
+        Page<ProductResponse> staticProductsPage = productCacheService.getStaticSearchProducts(keyword, pageable);
+        staticProductsPage.getContent().forEach(this::populateStockInformation);
+        return staticProductsPage;
     }
 
     // =============== CUD OPERATIONS ===============
@@ -102,7 +95,6 @@ public class ProductServiceImpl implements ProductService {
     @Transactional
     public ProductResponse createProduct(ProductRequest productRequest) {
         User currentUser = userService.getCurrentUser();
-        
         Category category = categoryRepository.findById(productRequest.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + productRequest.getCategoryId()));
         
@@ -110,19 +102,19 @@ public class ProductServiceImpl implements ProductService {
         product.setName(productRequest.getName());
         product.setDescription(productRequest.getDescription());
         product.setPrice(productRequest.getPrice());
-        product.setStock(productRequest.getStock());
+        product.setStock(productRequest.getStock()); // Initial physical stock
         product.setImages(productRequest.getImages());
         product.setCategory(category);
         product.setSeller(currentUser);
         product.setAverageRating(0.0);
         
         Product savedProduct = productRepository.save(product);
+        productCacheService.evictAllProductCaches(); // Evict list caches
         
-        // Evict caches after creating new product
-        productCacheService.evictAllProductCaches();
-        
-        // Return với real-time stock cho newly created product
-        return productMapper.toDto(savedProduct);
+        // Convert to DTO (static data) and then populate stock
+        ProductResponse response = productMapper.toDtoForCache(savedProduct);
+        populateStockInformation(response); // Populate real-time stock for the new product
+        return response;
     }
 
     @Transactional
@@ -158,18 +150,18 @@ public class ProductServiceImpl implements ProductService {
         product.setName(productRequest.getName());
         product.setDescription(productRequest.getDescription());
         product.setPrice(productRequest.getPrice());
-        product.setStock(productRequest.getStock());
+        product.setStock(productRequest.getStock()); // Updated physical stock
         product.setImages(productRequest.getImages());
         product.setCategory(category);
         
         Product updatedProduct = productRepository.save(product);
         
-        // Evict caches after updating product
-        productCacheService.evictProductCache(id);
-        productCacheService.evictAllProductCaches();
+        productCacheService.updateCachedProduct(updatedProduct); 
+        productCacheService.evictAllProductCaches(); 
         
-        // Return với real-time stock cho updated product
-        return productMapper.toDto(updatedProduct);
+        ProductResponse response = productMapper.toDtoForCache(updatedProduct);
+        populateStockInformation(response);
+        return response;
     }
 
     @Transactional
@@ -196,8 +188,7 @@ public class ProductServiceImpl implements ProductService {
         
         productRepository.delete(product);
         
-        // Evict caches after deleting product
-        productCacheService.evictProductCache(id);
-        productCacheService.evictAllProductCaches();
+        productCacheService.evictProductCache(id); // Evict specific product cache
+        productCacheService.evictAllProductCaches(); // Evict list caches
     }
 } 
