@@ -14,7 +14,9 @@ import com.ecommerce.model.OrderItem;
 import com.ecommerce.model.User;
 import com.ecommerce.repository.OrderRepository;
 import com.ecommerce.service.interfaces.CartService;
+import com.ecommerce.service.interfaces.EmailService;
 import com.ecommerce.service.interfaces.OrderService;
+import com.ecommerce.service.interfaces.ProductCacheService;
 import com.ecommerce.service.interfaces.StockService;
 import com.ecommerce.service.interfaces.StockReservationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,7 +49,13 @@ public class OrderServiceImpl implements OrderService {
     private StockReservationService stockReservationService;
 
     @Autowired
+    private EmailService emailService;
+
+    @Autowired
     private OrderMapper orderMapper;
+    
+    @Autowired
+    private ProductCacheService productCacheService;
     
     @Cacheable(value = CacheConfig.USER_ORDERS_CACHE, key = "#userId + '_' + #pageable.toString()")
     public Page<OrderDto> getUserOrders(Long userId, Pageable pageable) {
@@ -139,6 +147,14 @@ public class OrderServiceImpl implements OrderService {
         // Clear the cart after creating the order
         cartService.clearCart(currentUser); 
         
+        // Gửi email xác nhận đặt hàng
+        try {
+            emailService.sendOrderConfirmationEmail(currentUser, savedOrder);
+        } catch (Exception e) {
+            // Log error nhưng không làm fail transaction
+            // Email failure không nên ảnh hưởng đến việc tạo đơn hàng
+        }
+        
         return orderMapper.toDto(savedOrder);
     }
 
@@ -174,7 +190,16 @@ public class OrderServiceImpl implements OrderService {
             stockService.restoreProductStock(order.getItems());
         }
         
-        return orderMapper.toDto(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+        
+        // Gửi email thông báo hủy đơn hàng
+        try {
+            emailService.sendOrderCancellationEmail(currentUser, savedOrder);
+        } catch (Exception e) {
+            // Log error nhưng không làm fail transaction
+        }
+        
+        return orderMapper.toDto(savedOrder);
     }
 
     @Cacheable(value = CacheConfig.ORDERS_CACHE, key = "#pageable.toString()")
@@ -208,6 +233,10 @@ public class OrderServiceImpl implements OrderService {
             if (order.getStatus() == Order.OrderStatus.PENDING && status == Order.OrderStatus.PROCESSING) {
                 // Thanh toán thành công - confirm reservations
                 stockReservationService.confirmReservations(order.getId());
+                
+                // Evict product caches vì actual stock đã thay đổi
+                evictProductCachesForOrder(order);
+                
             } else if (order.getStatus() == Order.OrderStatus.PENDING && status == Order.OrderStatus.CANCELLED) {
                 // Thanh toán thất bại - cancel reservations
                 stockReservationService.cancelReservations(order.getId());
@@ -220,7 +249,30 @@ public class OrderServiceImpl implements OrderService {
             order.setDeliveryDate(LocalDateTime.now());
         }
         
-        return orderMapper.toDto(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+        
+        // Gửi email cập nhật trạng thái đơn hàng
+        try {
+            emailService.sendOrderStatusUpdateEmail(order.getUser(), savedOrder);
+        } catch (Exception e) {
+            // Log error nhưng không làm fail transaction
+        }
+        
+        return orderMapper.toDto(savedOrder);
+    }
+    
+    /**
+     * Helper method để evict product caches khi stock thay đổi
+     * Chỉ gọi khi actual stock thay đổi (confirmReservations)
+     */
+    private void evictProductCachesForOrder(Order order) {
+        for (OrderItem item : order.getItems()) {
+            // Evict single product cache
+            productCacheService.evictProductCache(item.getProduct().getId());
+        }
+        
+        // Evict all product lists vì actual stock đã thay đổi
+        productCacheService.evictAllProductCaches();
     }
 
     private String generateOrderNumber() {

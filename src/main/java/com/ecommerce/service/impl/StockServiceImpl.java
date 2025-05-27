@@ -8,9 +8,8 @@ import com.ecommerce.model.Product;
 import com.ecommerce.repository.ProductRepository;
 import com.ecommerce.service.interfaces.StockService;
 import com.ecommerce.service.interfaces.StockReservationService;
+import com.ecommerce.service.interfaces.ProductCacheService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import com.ecommerce.config.CacheConfig;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,6 +20,9 @@ public class StockServiceImpl implements StockService {
     
     @Autowired
     private StockReservationService stockReservationService;
+    
+    @Autowired
+    private ProductCacheService productCacheService;
     
     @Override
     public void checkAvailableStockForCart(List<CartItem> cartItems) {
@@ -38,31 +40,31 @@ public class StockServiceImpl implements StockService {
     
     public void updateProductStock(List<OrderItem> orderItems) {
         for (var orderItem : orderItems) {
-            updateSingleProductStock(orderItem);
+            Product product = orderItem.getProduct();
+            Integer orderedQuantity = orderItem.getQuantity();
+            
+            product.setStock(product.getStock() - orderedQuantity);
+            productRepository.save(product);
+            
+            // Evict cache using external service call
+            productCacheService.evictProductCache(product.getId());
         }
-    }
-    
-    @CacheEvict(value = CacheConfig.PRODUCT_CACHE, key = "#orderItem.product.id")
-    private void updateSingleProductStock(OrderItem orderItem) {
-        Product product = orderItem.getProduct();
-        Integer orderedQuantity = orderItem.getQuantity();
-        
-        product.setStock(product.getStock() - orderedQuantity);
-        productRepository.save(product);
+        // Evict all product lists vì actual stock đã thay đổi
+        productCacheService.evictAllProductCaches();
     }
     
     public void restoreProductStock(List<OrderItem> orderItems) {
         for (var orderItem : orderItems) {
-            restoreSingleProductStock(orderItem);
+            Product product = orderItem.getProduct();
+            Integer orderedQuantity = orderItem.getQuantity();
+            
+            product.setStock(product.getStock() + orderedQuantity);
+            productRepository.save(product);
+            
+            // Evict cache using external service call
+            productCacheService.evictProductCache(product.getId());
         }
+        // Evict all product lists vì actual stock đã thay đổi
+        productCacheService.evictAllProductCaches();
     }
-    
-    @CacheEvict(value = CacheConfig.PRODUCT_CACHE, key = "#orderItem.product.id")
-    private void restoreSingleProductStock(OrderItem orderItem) {
-        Product product = orderItem.getProduct();
-        Integer orderedQuantity = orderItem.getQuantity();
-        
-        product.setStock(product.getStock() + orderedQuantity);
-        productRepository.save(product);
-    }
-} 
+}

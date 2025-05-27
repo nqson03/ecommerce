@@ -26,4 +26,5 @@ public interface OrderService {
     Page<OrderDto> getAllOrders(Pageable pageable);
     
     OrderDto updateOrderStatus(Long id, String orderNumber, Order.OrderStatus status);
+
 } 

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận đặt hàng thành công</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #4CAF50;
+            margin: 0;
+            font-size: 28px;
+        }
+        .order-info {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .order-info h3 {
+            color: #333;
+            margin-top: 0;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 5px 0;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .info-value {
+            color: #333;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .items-table th,
+        .items-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .items-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+        }
+        .total-amount {
+            text-align: right;
+            font-size: 18px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f0f8f0;
+            border-radius: 5px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 14px;
+        }
+        .success-icon {
+            color: #4CAF50;
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="success-icon">✓</div>
+            <h1>Đặt hàng thành công!</h1>
+            <p>Cảm ơn bạn đã đặt hàng tại cửa hàng của chúng tôi</p>
+        </div>
+
+        <div class="order-info">
+            <h3>Thông tin đơn hàng</h3>
+            <div class="info-row">
+                <span class="info-label">Mã đơn hàng:</span>
+                <span class="info-value" th:text="${order.orderNumber}"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Ngày đặt hàng:</span>
+                <span class="info-value" th:text="${orderDate}"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Khách hàng:</span>
+                <span class="info-value" th:text="${user.fullName}"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Email:</span>
+                <span class="info-value" th:text="${user.email}"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Địa chỉ giao hàng:</span>
+                <span class="info-value" th:text="${order.shippingAddress}"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Phương thức thanh toán:</span>
+                <span class="info-value" th:text="${order.paymentMethod}"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Trạng thái:</span>
+                <span class="info-value" th:text="${order.status}"></span>
+            </div>
+        </div>
+
+        <h3>Chi tiết sản phẩm</h3>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Sản phẩm</th>
+                    <th>Số lượng</th>
+                    <th>Đơn giá</th>
+                    <th>Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="item : ${order.items}">
+                    <td th:text="${item.product.name}"></td>
+                    <td th:text="${item.quantity}"></td>
+                    <td th:text="${#numbers.formatDecimal(item.price, 0, 'COMMA', 0, 'POINT')} + ' VNĐ'"></td>
+                    <td th:text="${#numbers.formatDecimal(item.price * item.quantity, 0, 'COMMA', 0, 'POINT')} + ' VNĐ'"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="total-amount">
+            Tổng cộng: <span th:text="${totalAmount}"></span>
+        </div>
+
+        <div style="background-color: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>Lưu ý:</strong></p>
+            <ul>
+                <li>Đơn hàng của bạn đang được xử lý và sẽ được giao trong thời gian sớm nhất.</li>
+                <li>Bạn sẽ nhận được email thông báo khi đơn hàng được giao.</li>
+                <li>Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ với chúng tôi.</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>Cảm ơn bạn đã tin tưởng và mua sắm tại cửa hàng của chúng tôi!</p>
+            <p>Đây là email tự động, vui lòng không trả lời email này.</p>
+        </div>
+    </div>
+</body>
+</html> 
