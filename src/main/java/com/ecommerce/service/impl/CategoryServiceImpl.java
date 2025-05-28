@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,10 +54,12 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = CacheConfig.CATEGORY_CACHE, key = "#id"),
-        @CacheEvict(value = CacheConfig.CATEGORIES_CACHE, allEntries = true)
-    })
+    @Caching(
+        put = { @CachePut(value = CacheConfig.CATEGORY_CACHE, key = "#result.id") },
+        evict = {
+            @CacheEvict(value = CacheConfig.CATEGORIES_CACHE, allEntries = true)
+        }
+    )
     public CategoryDto updateCategory(Long id, CategoryRequest categoryRequest) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));

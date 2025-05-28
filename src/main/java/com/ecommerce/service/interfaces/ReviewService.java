@@ -9,6 +9,8 @@ public interface ReviewService {
     
     Page<ReviewResponse> getProductReviews(Long productId, Pageable pageable);
     
+    ReviewResponse getReviewById(Long id);
+    
     ReviewResponse createReview(ReviewRequest reviewRequest);
     
     ReviewResponse updateReview(Long id, ReviewRequest reviewRequest);

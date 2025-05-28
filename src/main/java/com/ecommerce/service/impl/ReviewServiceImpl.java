@@ -20,6 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.cache.annotation.CachePut;
 
 @Service
 public class ReviewServiceImpl implements ReviewService {
@@ -39,6 +41,13 @@ public class ReviewServiceImpl implements ReviewService {
     @Cacheable(value = CacheConfig.REVIEWS_CACHE, key = "#productId + '_' + #pageable.toString()")
     public Page<ReviewResponse> getProductReviews(Long productId, Pageable pageable) {
         return reviewMapper.toResponsePage(reviewRepository.findByProductId(productId, pageable));
+    }
+
+    @Cacheable(value = CacheConfig.REVIEW_CACHE, key = "#id")
+    public ReviewResponse getReviewById(Long id) {
+        Review review = reviewRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + id));
+        return reviewMapper.toResponse(review);
     }
 
     @Transactional
@@ -65,7 +74,10 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Transactional
-    @CacheEvict(value = CacheConfig.REVIEWS_CACHE, allEntries = true)
+    @Caching(
+        put = { @CachePut(value = CacheConfig.REVIEW_CACHE, key = "#result.id") },
+        evict = { @CacheEvict(value = CacheConfig.REVIEWS_CACHE, allEntries = true) }
+    )
     public ReviewResponse updateReview(Long id, ReviewRequest reviewRequest) {
         User currentUser = userService.getCurrentUser();
         
@@ -94,7 +106,10 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Transactional
-    @CacheEvict(value = CacheConfig.REVIEWS_CACHE, allEntries = true)
+    @Caching(evict = {
+        @CacheEvict(value = CacheConfig.REVIEW_CACHE, key = "#id"),
+        @CacheEvict(value = CacheConfig.REVIEWS_CACHE, allEntries = true)
+    })
     public void deleteReview(Long id) {
         User currentUser = userService.getCurrentUser();
         

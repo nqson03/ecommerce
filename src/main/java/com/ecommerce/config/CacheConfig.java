@@ -52,6 +52,7 @@ public class CacheConfig {
     public static final String CATEGORY_PRODUCTS_CACHE = "categoryProducts";
     public static final String SEARCH_PRODUCTS_CACHE = "searchProducts";
     public static final String REVIEWS_CACHE = "reviews";
+    public static final String REVIEW_CACHE = "review";
     public static final String CART_CACHE = "cart";
     public static final String JWT_BLACKLIST_CACHE = "jwtBlacklist";
     public static final String CATEGORIES_CACHE = "categories";
@@ -68,6 +69,7 @@ public class CacheConfig {
     public static final long CATEGORY_PRODUCTS_CACHE_TTL = 3600; // 1 giờ
     public static final long SEARCH_PRODUCTS_CACHE_TTL = 1800; // 30 phút
     public static final long REVIEWS_CACHE_TTL = 1800; // 30 phút
+    public static final long REVIEW_CACHE_TTL = 3600; // 1 giờ
     public static final long CART_CACHE_TTL = 3600; // 1 giờ
     public static final long JWT_BLACKLIST_CACHE_TTL = 86400; // 24 giờ
     public static final long CATEGORIES_CACHE_TTL = 7200; // 2 giờ
@@ -208,6 +210,9 @@ public class CacheConfig {
                 
         cacheConfigurations.put(REVIEWS_CACHE, 
                 defaultCacheConfig.entryTtl(Duration.ofSeconds(REVIEWS_CACHE_TTL)));
+                
+        cacheConfigurations.put(REVIEW_CACHE,
+                defaultCacheConfig.entryTtl(Duration.ofSeconds(REVIEW_CACHE_TTL)));
                 
         cacheConfigurations.put(CART_CACHE, 
                 defaultCacheConfig.entryTtl(Duration.ofSeconds(CART_CACHE_TTL)));

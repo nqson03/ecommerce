@@ -45,6 +45,22 @@ public class ReviewController {
             reviewService.getProductReviews(productId, pageable)));
     }
 
+    @Operation(summary = "Lấy đánh giá theo ID", description = "Trả về đánh giá theo ID", tags = {"Review"})
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Lấy đánh giá thành công",
+                content = @Content(schema = @Schema(implementation = ReviewResponse.class))),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Không tìm thấy đánh giá",
+                content = @Content)
+    })
+    @GetMapping("/{id}")
+    @RateLimit(authenticatedLimit = 100, anonymousLimit = 50, refreshPeriod = 60)
+    public ResponseEntity<ApiResponse<ReviewResponse>> getReviewById(
+            @Parameter(description = "ID của đánh giá", required = true) @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(
+            "Review retrieved successfully",
+            reviewService.getReviewById(id)));
+    }
+
     @Operation(summary = "Tạo đánh giá mới", description = "Tạo đánh giá mới cho sản phẩm", 
             security = {@SecurityRequirement(name = "bearerAuth")})
     @ApiResponses(value = {

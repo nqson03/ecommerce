@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -47,7 +48,10 @@ public class UserServiceImpl implements UserService {
     }
     
     @Transactional
-    @CacheEvict(value = CacheConfig.USER_CACHE, key = "#result.id")
+    @Caching(
+        put = { @CachePut(value = CacheConfig.USER_CACHE, key = "#result.id") },
+        evict = { @CacheEvict(value = CacheConfig.USERS_CACHE, allEntries = true) }
+    )
     public UserDto updateCurrentUser(UserDto userDto) {
         User currentUser = getCurrentUser();
         
@@ -63,7 +67,6 @@ public class UserServiceImpl implements UserService {
     }
     
     @Transactional
-    @CacheEvict(value = CacheConfig.USER_CACHE, key = "#id")
     public void changePassword(long id, String currentPassword, String newPassword) {
         User user = getCurrentUser();
         
@@ -78,7 +81,12 @@ public class UserServiceImpl implements UserService {
     }
     
     @Transactional
-    @CacheEvict(value = CacheConfig.USER_CACHE, key = "#id")
+    @Caching(
+        evict = {
+            @CacheEvict(value = CacheConfig.USER_CACHE, key = "#id"),
+            @CacheEvict(value = CacheConfig.USERS_CACHE, allEntries = true)
+        }
+    )
     public void deleteCurrentUser(long id, String password) {
         User user = getCurrentUser();
         
@@ -98,10 +106,10 @@ public class UserServiceImpl implements UserService {
     }
     
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = CacheConfig.USER_CACHE, key = "#userId"),
-        @CacheEvict(value = CacheConfig.USERS_CACHE, allEntries = true)
-    })
+    @Caching(
+        put = { @CachePut(value = CacheConfig.USER_CACHE, key = "#result.id") },
+        evict = { @CacheEvict(value = CacheConfig.USERS_CACHE, allEntries = true) }
+    )
     public UserDto updateUserRole(Long userId, User.Role role) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
