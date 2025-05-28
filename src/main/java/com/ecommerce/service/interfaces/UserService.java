@@ -9,11 +9,13 @@ public interface UserService {
     
     User getCurrentUser();
     
+    User getUserById(Long userId);
+    
     UserDto getCurrentUserInfo(long id);
     
     UserDto updateCurrentUser(UserDto userDto);
     
-    void changePassword(long id, String currentPassword, String newPassword);
+    void changePassword(String currentPassword, String newPassword);
     
     void deleteCurrentUser(long id, String password);
     

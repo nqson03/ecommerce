@@ -3,7 +3,6 @@ package com.ecommerce.service.interfaces;
 import com.ecommerce.dto.OrderDto;
 import com.ecommerce.dto.OrderRequest;
 import com.ecommerce.model.Order;
-import com.ecommerce.model.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -13,15 +12,15 @@ public interface OrderService {
     
     Page<OrderDto> getUserOrders(Long userId, Pageable pageable);
     
-    OrderDto getOrderById(Long id, User currentUser);
+    OrderDto getOrderById(Long id, Long userId);
     
     Order getOrderEntityById(Long id);
     
     Optional<Order> findByOrderNumber(String orderNumber);
     
-    OrderDto createOrder(OrderRequest orderRequest, User currentUser);
+    OrderDto createOrder(OrderRequest orderRequest, Long userId);
     
-    OrderDto cancelOrder(Long id, User currentUser);
+    OrderDto cancelOrder(Long id, Long userId);
     
     Page<OrderDto> getAllOrders(Pageable pageable);
     

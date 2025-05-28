@@ -3,19 +3,18 @@ package com.ecommerce.service.interfaces;
 import com.ecommerce.dto.CartDto;
 import com.ecommerce.dto.CartItemRequest;
 import com.ecommerce.model.Cart;
-import com.ecommerce.model.User;
 
 public interface CartService {
     
-    Cart getOrCreateCart(User currentUser);
+    Cart getOrCreateCart(Long userId);
     
-    CartDto getCart(User currentUser);
+    CartDto getCart(Long userId);
     
-    CartDto addItemToCart(User currentUser, CartItemRequest request);
+    CartDto addItemToCart(Long userId, CartItemRequest request);
     
-    CartDto updateCartItem(User currentUser, Long itemId, CartItemRequest request);
+    CartDto updateCartItem(Long userId, Long itemId, CartItemRequest request);
     
-    CartDto removeItemFromCart(User currentUser, Long itemId);
+    CartDto removeItemFromCart(Long userId, Long itemId);
     
-    CartDto clearCart(User currentUser);
+    CartDto clearCart(Long userId);
 } 

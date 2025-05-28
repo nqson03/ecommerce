@@ -41,6 +41,11 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
     }
     
+    public User getUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+    }
+    
     @Cacheable(value = CacheConfig.USER_CACHE, key = "#id")
     public UserDto getCurrentUserInfo(long id) {
         User user = getCurrentUser();
@@ -50,7 +55,9 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Caching(
         put = { @CachePut(value = CacheConfig.USER_CACHE, key = "#result.id") },
-        evict = { @CacheEvict(value = CacheConfig.USERS_CACHE, allEntries = true) }
+        evict = { 
+            @CacheEvict(value = CacheConfig.USERS_CACHE, allEntries = true) 
+        }
     )
     public UserDto updateCurrentUser(UserDto userDto) {
         User currentUser = getCurrentUser();
@@ -67,7 +74,7 @@ public class UserServiceImpl implements UserService {
     }
     
     @Transactional
-    public void changePassword(long id, String currentPassword, String newPassword) {
+    public void changePassword(String currentPassword, String newPassword) {
         User user = getCurrentUser();
         
         // Kiểm tra mật khẩu hiện tại
@@ -108,7 +115,9 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Caching(
         put = { @CachePut(value = CacheConfig.USER_CACHE, key = "#result.id") },
-        evict = { @CacheEvict(value = CacheConfig.USERS_CACHE, allEntries = true) }
+        evict = { 
+            @CacheEvict(value = CacheConfig.USERS_CACHE, allEntries = true) 
+        }
     )
     public UserDto updateUserRole(Long userId, User.Role role) {
         User user = userRepository.findById(userId)

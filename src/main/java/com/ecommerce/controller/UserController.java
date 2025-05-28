@@ -88,8 +88,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<?>> changePassword(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails customUserDetails, 
             @Parameter(description = "Thông tin đổi mật khẩu", required = true) @Valid @RequestBody PasswordChangeRequest passwordChangeRequest) {
-        long id = customUserDetails.getId(); // Get the user's ID from the token payload
-        userService.changePassword(id, passwordChangeRequest.getCurrentPassword(), passwordChangeRequest.getNewPassword());
+        userService.changePassword(passwordChangeRequest.getCurrentPassword(), passwordChangeRequest.getNewPassword());
         return ResponseEntity.ok(ApiResponse.success("Password changed successfully", null));
     }
 

@@ -5,8 +5,7 @@ import com.ecommerce.dto.ApiResponse;
 import com.ecommerce.dto.CartDto;
 import com.ecommerce.dto.CartItemRequest;
 import com.ecommerce.service.interfaces.CartService;
-import com.ecommerce.service.interfaces.UserService; 
-import com.ecommerce.model.User; 
+import com.ecommerce.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,6 +17,8 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -29,8 +30,11 @@ public class CartController {
     @Autowired
     private CartService cartService;
 
-    @Autowired
-    private UserService userService; 
+    private Long getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        return userDetails.getId();
+    }
 
     @Operation(summary = "Lấy thông tin giỏ hàng", description = "Trả về thông tin giỏ hàng của người dùng hiện tại", 
             security = {@SecurityRequirement(name = "bearerAuth")})
@@ -45,8 +49,8 @@ public class CartController {
     @GetMapping
     @RateLimit(authenticatedLimit = 100, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<CartDto>> getCart() {
-        User currentUser = userService.getCurrentUser(); 
-        CartDto cartDto = cartService.getCart(currentUser); 
+        Long userId = getCurrentUserId();
+        CartDto cartDto = cartService.getCart(userId);
         ApiResponse<CartDto> response = ApiResponse.success("Get cart successfully", cartDto);
         return ResponseEntity.ok(response);
     }
@@ -69,8 +73,8 @@ public class CartController {
     @RateLimit(authenticatedLimit = 30, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<CartDto>> addItemToCart(
             @Parameter(description = "Thông tin sản phẩm thêm vào giỏ hàng", required = true) @Valid @RequestBody CartItemRequest request) {
-        User currentUser = userService.getCurrentUser(); 
-        CartDto cartDto = cartService.addItemToCart(currentUser, request); 
+        Long userId = getCurrentUserId();
+        CartDto cartDto = cartService.addItemToCart(userId, request);
         ApiResponse<CartDto> response = ApiResponse.success("Add item to cart successfully", cartDto);
         return ResponseEntity.ok(response);
     }
@@ -94,8 +98,8 @@ public class CartController {
     public ResponseEntity<ApiResponse<CartDto>> updateCartItem(
             @Parameter(description = "ID của sản phẩm trong giỏ hàng", required = true) @PathVariable Long itemId, 
             @Parameter(description = "Thông tin cập nhật sản phẩm", required = true) @Valid @RequestBody CartItemRequest request) {
-        User currentUser = userService.getCurrentUser(); 
-        CartDto cartDto = cartService.updateCartItem(currentUser, itemId, request); 
+        Long userId = getCurrentUserId();
+        CartDto cartDto = cartService.updateCartItem(userId, itemId, request);
         ApiResponse<CartDto> response = ApiResponse.success("Update cart item successfully", cartDto);
         return ResponseEntity.ok(response);
     }
@@ -116,8 +120,8 @@ public class CartController {
     @RateLimit(authenticatedLimit = 30, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<CartDto>> removeItemFromCart(
             @Parameter(description = "ID của sản phẩm trong giỏ hàng", required = true) @PathVariable Long itemId) {
-        User currentUser = userService.getCurrentUser(); 
-        CartDto cartDto = cartService.removeItemFromCart(currentUser, itemId); 
+        Long userId = getCurrentUserId();
+        CartDto cartDto = cartService.removeItemFromCart(userId, itemId);
         ApiResponse<CartDto> response = ApiResponse.success("Remove item from cart successfully", cartDto);
         return ResponseEntity.ok(response);
     }
@@ -135,8 +139,8 @@ public class CartController {
     @DeleteMapping("/clear")
     @RateLimit(authenticatedLimit = 10, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<CartDto>> clearCart() {
-        User currentUser = userService.getCurrentUser(); 
-        CartDto cartDto = cartService.clearCart(currentUser); 
+        Long userId = getCurrentUserId();
+        CartDto cartDto = cartService.clearCart(userId);
         ApiResponse<CartDto> response = ApiResponse.success("Clear cart successfully", cartDto);
         return ResponseEntity.ok(response);
     }

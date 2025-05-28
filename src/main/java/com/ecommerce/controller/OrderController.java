@@ -5,9 +5,8 @@ import com.ecommerce.dto.ApiResponse;
 import com.ecommerce.dto.OrderRequest;
 import com.ecommerce.model.Order;
 import com.ecommerce.dto.OrderDto;
-import com.ecommerce.model.User; 
+import com.ecommerce.security.CustomUserDetails;
 import com.ecommerce.service.interfaces.OrderService;
-import com.ecommerce.service.interfaces.UserService; 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -21,6 +20,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -31,8 +32,11 @@ public class OrderController {
     @Autowired
     private OrderService orderService;
 
-    @Autowired
-    private UserService userService; 
+    private Long getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        return userDetails.getId();
+    }
 
     @Operation(summary = "Lấy danh sách đơn hàng của người dùng", description = "Trả về danh sách đơn hàng của người dùng hiện tại", 
             security = {@SecurityRequirement(name = "bearerAuth")})
@@ -49,8 +53,8 @@ public class OrderController {
     @RateLimit(authenticatedLimit = 50, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<Page<OrderDto>>> getUserOrders(
             @Parameter(description = "Thông tin phân trang") Pageable pageable) {
-        User currentUser = userService.getCurrentUser();
-        return ResponseEntity.ok(ApiResponse.success("Orders retrieved successfully", orderService.getUserOrders(currentUser.getId(), pageable)));
+        Long userId = getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.success("Orders retrieved successfully", orderService.getUserOrders(userId, pageable)));
     }
 
     @Operation(summary = "Lấy thông tin đơn hàng theo ID", description = "Trả về thông tin chi tiết của đơn hàng theo ID", 
@@ -70,8 +74,8 @@ public class OrderController {
     @RateLimit(authenticatedLimit = 50, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<OrderDto>> getOrderById(
             @Parameter(description = "ID của đơn hàng", required = true) @PathVariable Long id) {
-        User currentUser = userService.getCurrentUser();
-        return ResponseEntity.ok(ApiResponse.success("Get Order successfully", orderService.getOrderById(id, currentUser)));
+        Long userId = getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.success("Get Order successfully", orderService.getOrderById(id, userId)));
     }
 
     @Operation(summary = "Tạo đơn hàng mới", description = "Tạo đơn hàng mới cho người dùng hiện tại", 
@@ -91,8 +95,8 @@ public class OrderController {
     @RateLimit(authenticatedLimit = 10, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<OrderDto>> createOrder(
             @Parameter(description = "Thông tin đơn hàng", required = true) @Valid @RequestBody OrderRequest orderRequest) {
-        User currentUser = userService.getCurrentUser();
-        return ResponseEntity.ok(ApiResponse.success("Order created successfully", orderService.createOrder(orderRequest, currentUser)));
+        Long userId = getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.success("Order created successfully", orderService.createOrder(orderRequest, userId)));
     }
 
     @Operation(summary = "Hủy đơn hàng", description = "Hủy đơn hàng hiện có", 
@@ -112,8 +116,8 @@ public class OrderController {
     @RateLimit(authenticatedLimit = 10, refreshPeriod = 60)
     public ResponseEntity<ApiResponse<OrderDto>> cancelOrder(
             @Parameter(description = "ID của đơn hàng", required = true) @PathVariable Long id) {
-        User currentUser = userService.getCurrentUser();
-        return ResponseEntity.ok(ApiResponse.success("Order canceled successfully", orderService.cancelOrder(id, currentUser)));
+        Long userId = getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.success("Order canceled successfully", orderService.cancelOrder(id, userId)));
     }
 
     @Operation(summary = "Lấy tất cả đơn hàng (Admin)", description = "Trả về danh sách tất cả đơn hàng trong hệ thống", 

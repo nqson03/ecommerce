@@ -1,6 +1,5 @@
 package com.ecommerce.config;
 
-import com.ecommerce.security.CustomUserDetailsService;
 import com.ecommerce.security.JwtAuthenticationEntryPoint;
 import com.ecommerce.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,9 +20,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-
-    @Autowired
-    private CustomUserDetailsService userDetailsService;
 
     @Autowired
     private JwtAuthenticationEntryPoint unauthorizedHandler;

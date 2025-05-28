@@ -12,6 +12,7 @@ import com.ecommerce.mapper.CartMapper;
 import com.ecommerce.repository.CartRepository;
 import com.ecommerce.repository.ProductRepository;
 import com.ecommerce.service.interfaces.CartService;
+import com.ecommerce.service.interfaces.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
@@ -30,29 +31,34 @@ public class CartServiceImpl implements CartService {
     private ProductRepository productRepository;
 
     @Autowired
+    private UserService userService;
+
+    @Autowired
     private CartMapper cartMapper;
     
     @Transactional
-    public Cart getOrCreateCart(User currentUser) {       
-        return cartRepository.findByUserId(currentUser.getId())
+    public Cart getOrCreateCart(Long userId) {
+        User user = userService.getUserById(userId);
+                
+        return cartRepository.findByUserId(userId)
                 .orElseGet(() -> {
                     Cart newCart = new Cart();
-                    newCart.setUser(currentUser);
+                    newCart.setUser(user);
                     return cartRepository.save(newCart);
                 });
     }
 
     @Transactional
-    @Cacheable(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
-    public CartDto getCart(User currentUser) { 
-        Cart cart = getOrCreateCart(currentUser);
+    @Cacheable(value = CacheConfig.CART_CACHE, key = "#userId") 
+    public CartDto getCart(Long userId) { 
+        Cart cart = getOrCreateCart(userId);
         return cartMapper.toDto(cart);
     }
 
     @Transactional
-    @CachePut(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
-    public CartDto addItemToCart(User currentUser, CartItemRequest request) { 
-        Cart cart = getOrCreateCart(currentUser);
+    @CachePut(value = CacheConfig.CART_CACHE, key = "#userId") 
+    public CartDto addItemToCart(Long userId, CartItemRequest request) { 
+        Cart cart = getOrCreateCart(userId);
         
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + request.getProductId()));
@@ -80,14 +86,14 @@ public class CartServiceImpl implements CartService {
     }
 
     @Transactional
-    @CachePut(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
-    public CartDto updateCartItem(User currentUser, Long itemId, CartItemRequest request) { 
-        Cart cart = getOrCreateCart(currentUser);
+    @CachePut(value = CacheConfig.CART_CACHE, key = "#userId") 
+    public CartDto updateCartItem(Long userId, Long itemId, CartItemRequest request) { 
+        Cart cart = getOrCreateCart(userId);
         
         CartItem item = cart.getItems().stream()
                 .filter(i -> i.getId().equals(itemId))
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Cart item not found with id: " + itemId + " in cart for user: " + currentUser.getId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Cart item not found with id: " + itemId + " in cart for user: " + userId));
         
         // Optional: Check if the product ID in the request matches the item's product ID
         // This prevents accidentally changing the product associated with a cart item ID
@@ -104,15 +110,15 @@ public class CartServiceImpl implements CartService {
     }
 
     @Transactional
-    @CachePut(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
-    public CartDto removeItemFromCart(User currentUser, Long itemId) { 
-        Cart cart = getOrCreateCart(currentUser);
+    @CachePut(value = CacheConfig.CART_CACHE, key = "#userId") 
+    public CartDto removeItemFromCart(Long userId, Long itemId) { 
+        Cart cart = getOrCreateCart(userId);
 
         boolean removed = cart.getItems().removeIf(item -> item.getId().equals(itemId));
     
         // Nếu không có mục nào bị xóa, tức là itemId không tồn tại trong giỏ, thì ném exception
         if (!removed) {
-            throw new ResourceNotFoundException("Cart item not found with id: " + itemId + " in cart for user: " + currentUser.getId());
+            throw new ResourceNotFoundException("Cart item not found with id: " + itemId + " in cart for user: " + userId);
         }
         
         cart = cartRepository.save(cart);
@@ -120,9 +126,9 @@ public class CartServiceImpl implements CartService {
     }
 
     @Transactional
-    @CachePut(value = CacheConfig.CART_CACHE, key = "#currentUser.id") 
-    public CartDto clearCart(User currentUser) { 
-        Cart cart = getOrCreateCart(currentUser);
+    @CachePut(value = CacheConfig.CART_CACHE, key = "#userId") 
+    public CartDto clearCart(Long userId) { 
+        Cart cart = getOrCreateCart(userId);
         
         // Instead of clearing, remove items associated with the cart to ensure cascading deletes if configured
         cart.getItems().clear(); // Or iterate and remove if clear() doesn't trigger cascades properly

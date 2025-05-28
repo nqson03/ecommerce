@@ -18,6 +18,7 @@ import com.ecommerce.service.interfaces.EmailService;
 import com.ecommerce.service.interfaces.OrderService;
 import com.ecommerce.service.interfaces.StockService;
 import com.ecommerce.service.interfaces.StockReservationService;
+import com.ecommerce.service.interfaces.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
@@ -38,6 +39,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private OrderRepository orderRepository;
+
+    @Autowired
+    private UserService userService;
 
     @Autowired
     private CartService cartService;
@@ -61,9 +65,11 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Cacheable(value = CacheConfig.ORDER_CACHE, key = "#id")
-    public OrderDto getOrderById(Long id, User currentUser) {
+    public OrderDto getOrderById(Long id, Long userId) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
+        
+        User currentUser = userService.getUserById(userId);
         
         // Check if the order belongs to the current user or if user is admin
         if (!order.getUser().getId().equals(currentUser.getId()) && 
@@ -94,8 +100,10 @@ public class OrderServiceImpl implements OrderService {
             @CacheEvict(value = CacheConfig.ORDERS_CACHE, allEntries = true)
         }
     )
-    public OrderDto createOrder(OrderRequest orderRequest, User currentUser) {
-        Cart cart = cartService.getOrCreateCart(currentUser); 
+    public OrderDto createOrder(OrderRequest orderRequest, Long userId) {
+        User currentUser = userService.getUserById(userId);
+                
+        Cart cart = cartService.getOrCreateCart(userId); 
         
         if (cart.getItems().isEmpty()) {
             throw new EmptyCartException("Cannot create order with empty cart");
@@ -144,7 +152,7 @@ public class OrderServiceImpl implements OrderService {
         }
         
         // Clear the cart after creating the order
-        cartService.clearCart(currentUser); 
+        cartService.clearCart(userId); 
         
         // Gửi email xác nhận đặt hàng
         try {
@@ -167,9 +175,11 @@ public class OrderServiceImpl implements OrderService {
             @CacheEvict(value = CacheConfig.ORDERS_CACHE, allEntries = true)
         }
     )
-    public OrderDto cancelOrder(Long id, User currentUser) {
+    public OrderDto cancelOrder(Long id, Long userId) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
+        
+        User currentUser = userService.getUserById(userId);
         
         // Check if the order belongs to the current user or if user is admin
         if (!order.getUser().getId().equals(currentUser.getId()) && 
